@@ -1,4 +1,5 @@
 from requests import get, post
+from math import ceil
 
 
 class APIService:
@@ -25,11 +26,12 @@ class APIService:
 
         return access_token
 
-
     # -------------------- USER RELATED FUNCTIONS ---------------------------
 
     def get_user_name(self, user_id: str):
-        return user_id
+        response = get(f'https://api.spotify.com/v1/users/{user_id}', headers=self.headers)
+        user_name = response.json()
+        return user_name['display_name']
 
     def get_user_playlists(self, user_id: str):
         response = get(f'https://api.spotify.com/v1/users/{user_id}/playlists', headers=self.headers)
@@ -51,34 +53,47 @@ class APIService:
     # --------------------- PLAYLIST RELATED FUNCTIONS -------------------------
 
     def get_playlist_name(self, pl_id: str):
-        return pl_id
+        response = get(f'https://api.spotify.com/v1/playlists/{pl_id}', headers=self.headers)
+        playlist = response.json()
+        return playlist["name"]
 
-    def get_playlist_duration(self, pl_id: str):
-        response = get(f'https://api.spotify.com/v1/playlists/{pl_id}/tracks', headers=self.headers)
-        songs = response.json()
+    def get_playlist_size(self, pl_id: str):
+        response = get(f'https://api.spotify.com/v1/playlists/{pl_id}', headers=self.headers)
+        playlist = response.json()
+
+        return playlist["tracks"]["total"]
+
+    def get_playlist_duration(self, pl_id: str, length: int):
         duration = 0
-        for i, song in enumerate(songs['items']):
-            song = song["track"]
-            duration += song["duration_ms"]
+        for j in range(ceil(length / 100)):
+            response = get(f'https://api.spotify.com/v1/playlists/{pl_id}/tracks?offset={j*100}', headers=self.headers)
+            songs = response.json()
+            for i, song in enumerate(songs['items']):
+                song = song["track"]
+                duration += song["duration_ms"]
+        minutes = str(duration // 1000 // 60 % 60 + 100)
         print(
-            f'\tDuration: {duration // 1000 // 60 // 60}h:{duration // 1000 // 60 % 60}m')
+            f'\tDuration: {duration // 1000 // 60 // 60}h:{minutes[1:]}m')
 
-    def get_playlist_songs(self, pl_id: str):
-        response = get(f'https://api.spotify.com/v1/playlists/{pl_id}/tracks', headers=self.headers)
-        songs = response.json()
+    def get_playlist_songs(self, pl_id: str, length: int):
         songs_ids = []
-        for i, song in enumerate(songs['items']):
-            song = song["track"]
-            songs_ids.append(song)
+        for j in range(ceil(length / 100)):
+            response = get(f'https://api.spotify.com/v1/playlists/{pl_id}/tracks?offset={j*100}', headers=self.headers)
+            songs = response.json()
+            for i, song in enumerate(songs['items']):
+                song = song["track"]
+                songs_ids.append(song['id'])
         return songs_ids
 
-    def get_playlist_songs_info(self, pl_id: str):
-        response = get(f'https://api.spotify.com/v1/playlists/{pl_id}/tracks', headers=self.headers)
-        songs = response.json()
-        for i, song in enumerate(songs['items']):
-            song = song["track"]
-            print(
-                f'{i + 1} - {song["name"]} - {song["album"]["artists"][0]["name"]}')
-            print(f'\tUrl: {song["external_urls"]}')
-            print(
-                f'\tDuration: {song["duration_ms"] // 1000 // 60}:{song["duration_ms"] // 1000 % 60}')
+    def get_playlist_songs_info(self, pl_id: str, length: int):
+        for j in range(ceil(length / 100)):
+            response = get(f'https://api.spotify.com/v1/playlists/{pl_id}/tracks?offset={j*100}', headers=self.headers)
+            songs = response.json()
+            for i, song in enumerate(songs['items']):
+                song = song["track"]
+                print(
+                    f'{i + 1 + j * 100} - {song["name"]} - {song["artists"][0]["name"]}')
+                print(f'\tUrl: {song["external_urls"]}')
+                seconds = str(song["duration_ms"] // 1000 % 60 + 100)
+                print(
+                    f'\tDuration: {song["duration_ms"] // 1000 // 60}:{seconds[1:]}')
