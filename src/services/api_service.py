@@ -83,7 +83,10 @@ class APIService:
             songs = response.json()
             for i, song in enumerate(songs['items']):
                 song = song["track"]
-                songs_ids.append(song['id'])
+                if song['is_local']:
+                    songs_ids.append(song['name'])
+                else:
+                    songs_ids.append(song['id'])
         return songs_ids
 
     def get_playlist_songs_info(self, pl_id: str, length: int):
