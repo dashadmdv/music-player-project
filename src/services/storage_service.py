@@ -5,7 +5,7 @@ eyed3.log.setLevel("ERROR")
 
 
 class StorageService:
-    def __init__(self, paths=[r"C:\Users\user\Music", r"C:\Users\user\Downloads"]):
+    def __init__(self, paths=(r"C:\Users\user\Music", r"C:\Users\user\Downloads")):
         self.paths = paths
 
     def get_song_path(self, title: str):
@@ -22,7 +22,7 @@ class StorageService:
     def get_song_title(path: str):
         audio = eyed3.load(path)
         try:
-            return audio.tag.title
+            return audio.tag.title or ''
         except:
             return ''
 
@@ -30,7 +30,7 @@ class StorageService:
     def get_song_artist(path: str):
         audio = eyed3.load(path)
         try:
-            return audio.tag.artist
+            return audio.tag.artist or ''
         except:
             return ''
 
@@ -38,7 +38,7 @@ class StorageService:
     def get_song_album(path: str):
         audio = eyed3.load(path)
         try:
-            return audio.tag.album
+            return audio.tag.album or ''
         except:
             return ''
 
@@ -54,7 +54,7 @@ class StorageService:
     def get_song_cover(path: str):
         audio = eyed3.load(path)
         try:
-            return audio.tag.image_urls
+            return audio.tag.image_urls or ''
         except:
             return ''
 
@@ -62,7 +62,7 @@ class StorageService:
     def get_song_date(path: str):
         audio = eyed3.load(path)
         try:
-            return audio.tag.date
+            return audio.tag.date or ''
         except:
             return ''
 
