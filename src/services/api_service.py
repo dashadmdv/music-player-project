@@ -74,6 +74,7 @@ class APIService:
         minutes = str(duration // 1000 // 60 % 60 + 100)
         print(
             f'\tDuration: {duration // 1000 // 60 // 60}h:{minutes[1:]}m')
+        return duration
 
     def get_playlist_songs(self, pl_id: str, length: int):
         songs_ids = []
@@ -97,3 +98,55 @@ class APIService:
                 seconds = str(song["duration_ms"] // 1000 % 60 + 100)
                 print(
                     f'\tDuration: {song["duration_ms"] // 1000 // 60}:{seconds[1:]}')
+
+    # --------------------- SONG RELATED FUNCTIONS -------------------------
+
+    def get_song_title(self, song_id: str):
+        response = get(f'https://api.spotify.com/v1/tracks/{song_id}', headers=self.headers)
+        song = response.json()
+        return song['name']
+
+    def get_song_artist(self, song_id: str):
+        response = get(f'https://api.spotify.com/v1/tracks/{song_id}', headers=self.headers)
+        song = response.json()
+        artists = []
+        for i, artist in enumerate(song['artists']):
+            artists.append(artist['name'])
+        return ', '.join(artists)
+
+    def get_song_album(self, song_id: str):
+        response = get(f'https://api.spotify.com/v1/tracks/{song_id}', headers=self.headers)
+        song = response.json()
+        return song['album']['id']
+
+    def get_song_duration(self, song_id: str):
+        response = get(f'https://api.spotify.com/v1/tracks/{song_id}', headers=self.headers)
+        song = response.json()
+        return song['duration_ms']
+
+    def get_song_cover(self, song_id: str):
+        response = get(f'https://api.spotify.com/v1/tracks/{song_id}', headers=self.headers)
+        song = response.json()
+        return song['album']['images'][0]['url']
+
+    def get_song_date(self, song_id: str):
+        response = get(f'https://api.spotify.com/v1/tracks/{song_id}', headers=self.headers)
+        song = response.json()
+        return song['album']['release_date']
+
+    def get_song_url(self, song_id: str):
+        response = get(f'https://api.spotify.com/v1/tracks/{song_id}', headers=self.headers)
+        song = response.json()
+        return song['preview_url'] or ''
+
+    def get_song_info(self, song_id: str):
+        response = get(f'https://api.spotify.com/v1/tracks/{song_id}', headers=self.headers)
+        song = response.json()
+        print(song['name'] + ' - ' + self.get_song_artist(song_id))
+        seconds = str(song["duration_ms"] // 1000 % 60 + 100)
+        print(
+            f'Duration: {song["duration_ms"] // 1000 // 60}:{seconds[1:]}')
+        print('Album: ' + song['album']['name'])
+        print('Release date: ' + song['album']['release_date'])
+        print('Cover: ' + song['album']['images'][0]['url'])
+        print('Link: ' + self.get_song_url(song_id))
