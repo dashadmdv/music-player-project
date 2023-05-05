@@ -15,7 +15,7 @@ class StorageService:
                     if file.endswith('.mp3'):
                         cur_path = root + '\\' + str(file)
                         cur_title = StorageService.get_song_title(cur_path)
-                        if title == cur_title:
+                        if title == cur_title or title == str(file)[:-4]:
                             return cur_path
 
     @staticmethod
@@ -68,7 +68,11 @@ class StorageService:
 
     def get_song_info(self, title: str):
         path = self.get_song_path(title)
-        print(StorageService.get_song_title(path) + ' - ' + StorageService.get_song_artist(path))
+        name = StorageService.get_song_title(path) + ' - ' + StorageService.get_song_artist(path)
+        if name == ' - ':
+            print(title)
+        else:
+            print(name)
         duration = StorageService.get_song_duration(path)
         seconds = str(int(duration % 60 + 100))
         print(f'Duration: {int(duration // 60)}:{seconds[1:]}')
