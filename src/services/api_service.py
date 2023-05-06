@@ -1,5 +1,6 @@
 from requests import get, post
 from math import ceil
+from src.services.storage_service import StorageService
 
 
 class APIService:
@@ -77,6 +78,7 @@ class APIService:
         return duration
 
     def get_playlist_songs(self, pl_id: str, length: int):
+        stor_serv = StorageService()
         songs_ids = []
         for j in range(ceil(length / 100)):
             response = get(f'https://api.spotify.com/v1/playlists/{pl_id}/tracks?offset={j*100}', headers=self.headers)
@@ -84,9 +86,9 @@ class APIService:
             for i, song in enumerate(songs['items']):
                 song = song["track"]
                 if song['is_local']:
-                    songs_ids.append(song['name'])
+                    songs_ids.append((song['name'], stor_serv.get_song_path(song['name'])))
                 else:
-                    songs_ids.append(song['id'])
+                    songs_ids.append((song['id'], song['preview_url']))
         return songs_ids
 
     def get_playlist_songs_info(self, pl_id: str, length: int):
@@ -140,7 +142,7 @@ class APIService:
     def get_song_url(self, song_id: str):
         response = get(f'https://api.spotify.com/v1/tracks/{song_id}', headers=self.headers)
         song = response.json()
-        return song['preview_url'] or ''
+        return song['preview_url']
 
     def get_song_info(self, song_id: str):
         response = get(f'https://api.spotify.com/v1/tracks/{song_id}', headers=self.headers)
@@ -152,4 +154,4 @@ class APIService:
         print('Album: ' + song['album']['name'])
         print('Release date: ' + song['album']['release_date'])
         print('Cover: ' + song['album']['images'][0]['url'])
-        print('Link: ' + self.get_song_url(song_id))
+        print('Link: ' + str(self.get_song_url(song_id)))

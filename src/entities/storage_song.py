@@ -7,9 +7,13 @@ stor_serv = StorageService()
 # is that Spotify API does not give you access to local file's path
 # instead it can only give you the song's title, which is file's metadata
 class StorageSong:
-    def __init__(self, title):
-        self.title = title
-        self.path = stor_serv.get_song_path(title)
+    def __init__(self, title: str or tuple):
+        if type(title) is tuple:
+            self.title = title[0]
+            self.path = title[1]
+        else:
+            self.title = title
+            self.path = stor_serv.get_song_path(self.title)
         self.artist = stor_serv.get_song_artist(self.path)
         self.album = stor_serv.get_song_album(self.path)
         self.duration = stor_serv.get_song_duration(self.path)
