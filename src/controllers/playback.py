@@ -1,5 +1,5 @@
 import vlc
-from src.entities.queue import Queue
+from src.controllers.queue import Queue
 
 
 class Playback(object):
