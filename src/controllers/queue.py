@@ -31,16 +31,19 @@ class Queue(object):
         self.previous_songs.extend((playlist[:start_index]))
         self.cur_song = song
 
-    def update(self, song: tuple):
+    def update(self, song: tuple, last_song: bool = False):
         if song in self.previous_songs:
             self.song_ids.insert(0, self.cur_song)
             self.cur_song = self.previous_songs.pop()
         elif song in self.song_ids:
-            self.previous_songs.append(self.cur_song)
+            if not last_song:
+                self.previous_songs.append(self.cur_song)
             self.cur_song = self.song_ids.pop(0)
         elif song in self.first_order_ids:
             self.previous_songs.append(self.cur_song)
             self.cur_song = self.first_order_ids.pop(0)
+        elif song is self.cur_song:
+            pass
         else:
             self.reload(song, [])
 
@@ -57,7 +60,6 @@ class Queue(object):
         if not self.previous_songs:
             return self.cur_song
         else:
-            self.cur_song = self.previous_songs[-1]
             return self.previous_songs[-1]
 
     def next(self):
@@ -65,7 +67,6 @@ class Queue(object):
             if self.is_empty():
                 self.song_ids = self.previous_songs.copy()
                 self.previous_songs.clear()
-            self.cur_song = self.song_ids[0]
             return self.song_ids[0]
         else:
             self.cur_song = self.first_order_ids[0]

@@ -47,8 +47,9 @@ class Playback(object):
             self.player.play()
 
     def next(self):
+        last_song = self.queue.is_empty()
         next = self.queue.next()
-        self.queue.update(next)
+        self.queue.update(next, last_song)
         if not next[1]:
             self.next()
         else:
