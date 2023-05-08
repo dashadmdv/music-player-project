@@ -71,6 +71,15 @@ class Playback(object):
         else:
             self.play(next[1])
 
+    def set_time(self, seconds: int, operator: str = '='):
+        cur_time = self.player.get_time()
+        if operator == '+':
+            self.player.set_time(cur_time + seconds * 1000)
+        elif operator == '-':
+            self.player.set_time(cur_time - seconds * 1000)
+        elif operator == '=':
+            self.player.set_time(seconds * 1000)
+
     def check_if_ended(self, player: vlc.MediaPlayer):
         while player.get_state() != vlc.State.Playing:
             sleep(0.001)
