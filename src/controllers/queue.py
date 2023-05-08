@@ -73,4 +73,9 @@ class Queue(object):
             return self.first_order_ids[0]
 
     def is_empty(self):
-        return not self.first_order_ids and not self.song_ids
+        available = False
+        for item in self.first_order_ids:
+            available = available or bool(item[1])
+        for item in self.song_ids:
+            available = available or bool(item[1])
+        return (not self.first_order_ids and not self.song_ids) or not available

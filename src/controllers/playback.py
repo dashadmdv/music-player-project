@@ -18,7 +18,7 @@ class Playback(object):
 
     @dispatch(tuple, list)
     def play(self, song: tuple, playlist: list = []):
-        if not song[1]:
+        if not song[1] and not playlist and not self.queue.previous_songs:
             self.next()
         else:
             if self.queue.is_empty() and not playlist:
@@ -27,6 +27,10 @@ class Playback(object):
                 self.queue.reload(song, playlist)
             else:
                 self.queue.reload(song, playlist)
+            # the 2nd check is for the case when the first ever song
+            # we want to play doesn't have a source to play it from
+            if not song[1]:
+                self.next()
             self.play(song[1])
 
     @dispatch(str)
