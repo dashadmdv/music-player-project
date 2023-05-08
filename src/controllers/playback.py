@@ -1,4 +1,7 @@
 import vlc
+from time import sleep
+from src.utils.custom_thread import CustomThread
+from multipledispatch import dispatch
 from src.controllers.queue import Queue
 
 
@@ -13,6 +16,7 @@ class Playback(object):
             cls.instance = super(Playback, cls).__new__(cls)
         return cls.instance
 
+    @dispatch(tuple, list)
     def play(self, song: tuple, playlist: list = []):
         if not song[1]:
             self.next()
@@ -23,9 +27,20 @@ class Playback(object):
                 self.queue.reload(song, playlist)
             else:
                 self.queue.reload(song, playlist)
-            media = vlc.Media(song[1])
-            self.player.set_media(media)
-            self.player.play()
+            self.play(song[1])
+
+    @dispatch(str)
+    def play(self, source: str):
+        self.stop()
+        media = vlc.Media(source)
+        self.player.set_media(media)
+        self.player.play()
+        thread2 = CustomThread(target=self.check_if_ended, args=self.player)
+        thread2.start()
+        thread2.join()
+        ended = thread2.value
+        if ended:
+            self.next()
 
     def pause(self):
         self.paused = not self.paused
@@ -41,10 +56,7 @@ class Playback(object):
         if not prev[1]:
             self.previous()
         else:
-            self.stop()
-            media = vlc.Media(prev[1])
-            self.player.set_media(media)
-            self.player.play()
+            self.play(prev[1])
 
     def next(self):
         last_song = self.queue.is_empty()
@@ -53,7 +65,13 @@ class Playback(object):
         if not next[1]:
             self.next()
         else:
-            self.stop()
-            media = vlc.Media(next[1])
-            self.player.set_media(media)
-            self.player.play()
+            self.play(next[1])
+
+    def check_if_ended(self, player: vlc.MediaPlayer):
+        while player.get_state() != vlc.State.Playing:
+            sleep(0.001)
+        while player.get_state() != vlc.State.Ended:
+            sleep(0.001)
+        if player.get_state() == vlc.State.Ended:
+            return True
+        return False
