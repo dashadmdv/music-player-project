@@ -4,12 +4,9 @@ api_serv = APIService()
 
 
 class User:
-    def __init__(self, id, admin=False):
+    def __init__(self, id):
         self.id = id
-        self.admin = admin
         self.name = api_serv.get_user_name(self.id)
-        if admin:
-            self.token = api_serv.update_token()
         self.playlists = api_serv.get_user_playlists(self.id)
         self.preferences = []
 
