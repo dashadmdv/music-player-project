@@ -12,10 +12,10 @@ class StorageService:
         for path in self.paths:
             for root, dirs, files in os.walk(path):
                 for file in files:
-                    if file.endswith('.mp3'):
+                    if file.endswith('.mp3') or file.endswith('.m4a'):
                         cur_path = root + '\\' + str(file)
                         cur_title = StorageService.get_song_title(cur_path)
-                        if title == cur_title or title == str(file)[:-4]:
+                        if title == cur_title or title == str(file)[:-4] or str(file)[:-4].count(title):
                             return cur_path
 
     @staticmethod
