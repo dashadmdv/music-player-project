@@ -1,7 +1,8 @@
-from requests import get, post
+from requests import get, post, delete
 from math import ceil
 from webbrowser import open_new_tab
 from src.services.storage_service import StorageService
+from json import dumps
 from multipledispatch import dispatch
 
 
@@ -22,6 +23,8 @@ class APIService:
             }
         self.scope = 'user-library-read user-read-private user-read-email ' + \
                      'playlist-modify-public playlist-read-private playlist-modify-private'
+
+    # --------------------- AUTHORIZATION RELATED FUNCTIONS -------------------------
 
     def auth_agent(self):
         auth_url = f'https://accounts.spotify.com/authorize?client_id={self.client_id}&response_type=code' + \
@@ -44,7 +47,7 @@ class APIService:
         auth_response_data = auth_response.json()
         self.refresh_token = auth_response_data['refresh_token']
         self.headers = {
-            'Authorization': 'Bearer {token}'.format(token=self.refresh_user_token())
+            'Authorization': 'Bearer {token}'.format(token=auth_response_data['access_token'])
         }
 
     def update_token(self):
@@ -60,7 +63,6 @@ class APIService:
 
     def refresh_user_token(self):
         auth_url = 'https://accounts.spotify.com/api/token'
-
         auth_response = post(auth_url, {
             'grant_type': 'refresh_token',
             'client_id': self.client_id,
@@ -69,6 +71,9 @@ class APIService:
         })
         auth_response_data = auth_response.json()
         access_token = auth_response_data['access_token']
+        self.headers = {
+            'Authorization': 'Bearer {token}'.format(token=access_token)
+        }
         return access_token
 
     # -------------------- USER RELATED FUNCTIONS ---------------------------
@@ -132,6 +137,12 @@ class APIService:
 
         return playlist["tracks"]["total"]
 
+    def get_playlist_snapshot(self, pl_id: str):
+        response = get(f'{self.base_uri}/playlists/{pl_id}', headers=self.headers)
+        playlist = response.json()
+
+        return playlist["snapshot_id"]
+
     def get_playlist_duration(self, pl_id: str, length: int = None):
         if not length:
             length = self.get_playlist_size(pl_id)
@@ -173,6 +184,19 @@ class APIService:
                 print(
                     f'\tDuration: {song["duration_ms"] // 1000 // 60}:{seconds[1:]}')
 
+    def add_song_to_playlist(self, pl_id: str, song_id: str, position: int = 0):
+        self.refresh_user_token()
+        post(f'{self.base_uri}/playlists/{pl_id}/tracks',
+             dumps({"uris": [f"spotify:track:{song_id}"], "position": position}),
+             headers=self.headers)
+
+    def delete_song_from_playlist(self, pl_id: str, song_id: str):
+        self.refresh_user_token()
+        snapshot = self.get_playlist_snapshot(pl_id)
+        delete(f'{self.base_uri}/playlists/{pl_id}/tracks',
+                          data=dumps({"tracks": [{"uri": f"spotify:track:{song_id}"}], "snapshot_id": snapshot}),
+                          headers=self.headers)
+
     # --------------------- SONG RELATED FUNCTIONS -------------------------
 
     def get_song_title(self, song_id: str):
@@ -212,6 +236,11 @@ class APIService:
         response = get(f'{self.base_uri}/tracks/{song_id}', headers=self.headers)
         song = response.json()
         return song['preview_url']
+
+    def get_song_uri(self, song_id: str):
+        response = get(f'{self.base_uri}/tracks/{song_id}', headers=self.headers)
+        song = response.json()
+        return song['uri']
 
     def get_song_info(self, song_id: str):
         response = get(f'{self.base_uri}/tracks/{song_id}', headers=self.headers)
