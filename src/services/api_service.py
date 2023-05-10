@@ -3,15 +3,17 @@ from math import ceil
 from webbrowser import open_new_tab
 from src.services.storage_service import StorageService
 from json import dumps
+from src.sync.auth_sync import AuthSynchronization
 
 
 class APIService:
-    def __init__(self):
+    def __init__(self, user_id=None):
         self.client_id = '278b5ce854d54d088d5c740a768dc46e'
         self.client_secret = 'b17bff721823449586b80a86ef6d5c26'
         self.redirect_uri = 'https://google.com/callback/'
         self.base_uri = 'https://api.spotify.com/v1'
-        self.refresh_token = None
+        self.auth_sync = AuthSynchronization(user=user_id)
+        self.refresh_token = self.auth_sync.load_token()
         if not self.refresh_token:
             self.headers = {
                 'Authorization': 'Bearer {token}'.format(token=self.update_token())
@@ -48,6 +50,8 @@ class APIService:
         self.headers = {
             'Authorization': 'Bearer {token}'.format(token=auth_response_data['access_token'])
         }
+        self.auth_sync.__init__(self.get_current_user(), self.refresh_token)
+        self.auth_sync.save_token()
 
     def update_token(self):
         auth_url = 'https://accounts.spotify.com/api/token'
@@ -77,34 +81,42 @@ class APIService:
 
     # -------------------- USER RELATED FUNCTIONS ---------------------------
 
+    def get_current_user(self):
+        response = get(f'{self.base_uri}/me', headers=self.headers)
+        user = response.json()
+        return user['id']
+
     def get_user_name(self, user_id: str):
         response = get(f'{self.base_uri}/users/{user_id}', headers=self.headers)
         user_name = response.json()
         return user_name['display_name']
 
     def get_user_playlists(self, user_id: str):
-        response = get(f'{self.base_uri}/users/{user_id}/playlists', headers=self.headers)
+        response = get(f'{self.base_uri}/users/{user_id}/playlists?limit=50', headers=self.headers)
         playlists = response.json()
         playlists_ids = []
 
         for i, playlist in enumerate(playlists['items']):
-            playlists_ids.append(playlist['id'])
+            if playlist['owner']['id'] == user_id:
+                playlists_ids.append(playlist['id'])
         return playlists_ids
 
     def get_user_playlists_info(self, user_id: str):
-        response = get(f'{self.base_uri}/users/{user_id}/playlists', headers=self.headers)
+        response = get(f'{self.base_uri}/users/{user_id}/playlists?limit=50', headers=self.headers)
         playlists = response.json()
-
+        count = 0
         for i, playlist in enumerate(playlists['items']):
-            print(f'{i + 1} - {playlist["name"]}')
-            print(f'Number of tracks: {playlist["tracks"]["total"]}')
-            duration = self.get_playlist_duration(playlist['id'])
-            minutes = str(duration // 1000 // 60 % 60 + 100)
-            print(
-                f'\tDuration: {duration // 1000 // 60 // 60}h:{minutes[1:]}m')
+            if playlist['owner']['id'] == user_id:
+                count = count + 1
+                print(f'{count} - {playlist["name"]}')
+                print(f'Number of tracks: {playlist["tracks"]["total"]}')
+                duration = self.get_playlist_duration(playlist['id'])
+                minutes = str(duration // 1000 // 60 % 60 + 100)
+                print(
+                    f'\tDuration: {duration // 1000 // 60 // 60}h:{minutes[1:]}m')
 
     def get_user_library(self):
-        response = get(f'{self.base_uri}/me/playlists', headers=self.headers)
+        response = get(f'{self.base_uri}/me/playlists?limit=50', headers=self.headers)
         playlists = response.json()
         playlists_ids = []
 
@@ -225,8 +237,8 @@ class APIService:
         if not description:
             description = self.get_playlist_description(pl_id)
         put(f'{self.base_uri}/playlists/{pl_id}',
-            dumps({"name": name, "public": public, "description": description}),
-            headers=self.headers)
+                       dumps({"name": name, "public": public, "description": description}),
+                       headers=self.headers)
 
     # --------------------- SONG RELATED FUNCTIONS -------------------------
 
@@ -283,4 +295,4 @@ class APIService:
         print('Album: ' + song['album']['name'])
         print('Release date: ' + song['album']['release_date'])
         print('Cover: ' + song['album']['images'][0]['url'])
-        print('Link: ' + str(self.get_song_url(song_id)))
+        print('Link: ' + str(song['preview_url']))
