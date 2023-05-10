@@ -1,9 +1,8 @@
-from requests import get, post, delete
+from requests import get, post, put, delete
 from math import ceil
 from webbrowser import open_new_tab
 from src.services.storage_service import StorageService
 from json import dumps
-from multipledispatch import dispatch
 
 
 class APIService:
@@ -31,7 +30,7 @@ class APIService:
                    f'&redirect_uri={self.redirect_uri}&scope={self.scope.replace(" ", "+")}&state=34fFs29kd09'
         open_new_tab(auth_url)
 
-    def authorization(self, code_url: str):
+    def authentication(self, code_url: str):
         substring = 'https://google.com/callback/?code='
         index1 = code_url.find(substring) - 1
         index2 = code_url.find('&state=34fFs29kd09')
@@ -124,6 +123,18 @@ class APIService:
             print(
                 f'\tDuration: {duration // 1000 // 60 // 60}h:{minutes[1:]}m')
 
+    def create_playlist(self, user_id: str, name: str, public: bool = True, description: str = ''):
+        self.refresh_user_token()
+        response = post(f'{self.base_uri}/users/{user_id}/playlists',
+                        dumps({"name": name, "public": public, "description": description}),
+                        headers=self.headers)
+        playlist = response.json()
+        return playlist['id']
+
+    def delete_playlist(self, pl_id: str):
+        self.refresh_user_token()
+        delete(f'{self.base_uri}/playlists/{pl_id}/followers', headers=self.headers)
+
     # --------------------- PLAYLIST RELATED FUNCTIONS -------------------------
 
     def get_playlist_name(self, pl_id: str):
@@ -131,10 +142,14 @@ class APIService:
         playlist = response.json()
         return playlist["name"]
 
+    def get_playlist_description(self, pl_id: str):
+        response = get(f'{self.base_uri}/playlists/{pl_id}', headers=self.headers)
+        playlist = response.json()
+        return playlist["description"]
+
     def get_playlist_size(self, pl_id: str):
         response = get(f'{self.base_uri}/playlists/{pl_id}', headers=self.headers)
         playlist = response.json()
-
         return playlist["tracks"]["total"]
 
     def get_playlist_snapshot(self, pl_id: str):
@@ -156,9 +171,11 @@ class APIService:
                     duration += song["duration_ms"]
         return duration
 
-    def get_playlist_songs(self, pl_id: str, length: int):
+    def get_playlist_songs(self, pl_id: str, length: int = None):
         stor_serv = StorageService()
         songs_ids = []
+        if not length:
+            length = self.get_playlist_size(pl_id)
         for j in range(ceil(length / 100)):
             response = get(f'{self.base_uri}/playlists/{pl_id}/tracks?offset={j * 100}', headers=self.headers)
             songs = response.json()
@@ -171,18 +188,23 @@ class APIService:
                         songs_ids.append((song['id'], song['preview_url']))
         return songs_ids
 
-    def get_playlist_songs_info(self, pl_id: str, length: int):
-        for j in range(ceil(length / 100)):
-            response = get(f'{self.base_uri}/playlists/{pl_id}/tracks?offset={j * 100}', headers=self.headers)
-            songs = response.json()
-            for i, song in enumerate(songs['items']):
-                song = song["track"]
-                print(
-                    f'{i + 1 + j * 100} - {song["name"]} - {song["artists"][0]["name"]}')
-                print(f'\tUrl: {song["external_urls"]}')
-                seconds = str(song["duration_ms"] // 1000 % 60 + 100)
-                print(
-                    f'\tDuration: {song["duration_ms"] // 1000 // 60}:{seconds[1:]}')
+    def get_playlist_songs_info(self, pl_id: str, length: int = None):
+        if not length:
+            length = self.get_playlist_size(pl_id)
+        if length == 0:
+            print('Playlist is empty!')
+        else:
+            for j in range(ceil(length / 100)):
+                response = get(f'{self.base_uri}/playlists/{pl_id}/tracks?offset={j * 100}', headers=self.headers)
+                songs = response.json()
+                for i, song in enumerate(songs['items']):
+                    song = song["track"]
+                    print(
+                        f'{i + 1 + j * 100} - {song["name"]} - {song["artists"][0]["name"]}')
+                    print(f'\tUrl: {song["external_urls"]}')
+                    seconds = str(song["duration_ms"] // 1000 % 60 + 100)
+                    print(
+                        f'\tDuration: {song["duration_ms"] // 1000 // 60}:{seconds[1:]}')
 
     def add_song_to_playlist(self, pl_id: str, song_id: str, position: int = 0):
         self.refresh_user_token()
@@ -194,8 +216,17 @@ class APIService:
         self.refresh_user_token()
         snapshot = self.get_playlist_snapshot(pl_id)
         delete(f'{self.base_uri}/playlists/{pl_id}/tracks',
-                          data=dumps({"tracks": [{"uri": f"spotify:track:{song_id}"}], "snapshot_id": snapshot}),
-                          headers=self.headers)
+               data=dumps({"tracks": [{"uri": f"spotify:track:{song_id}"}], "snapshot_id": snapshot}),
+               headers=self.headers)
+
+    def update_playlist_info(self, pl_id: str, name: str = None, public: bool = True, description: str = None):
+        if not name:
+            name = self.get_playlist_name(pl_id)
+        if not description:
+            description = self.get_playlist_description(pl_id)
+        put(f'{self.base_uri}/playlists/{pl_id}',
+            dumps({"name": name, "public": public, "description": description}),
+            headers=self.headers)
 
     # --------------------- SONG RELATED FUNCTIONS -------------------------
 
