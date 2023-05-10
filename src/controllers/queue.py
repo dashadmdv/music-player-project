@@ -32,14 +32,14 @@ class Queue(object):
         self.cur_song = song
 
     def update(self, song: tuple, last_song: bool = False):
-        if song in self.previous_songs:
+        if self.previous_songs and song == self.previous_songs[-1]:
             self.song_ids.insert(0, self.cur_song)
             self.cur_song = self.previous_songs.pop()
-        elif song in self.song_ids:
+        elif self.song_ids and song == self.song_ids[0]:
             if not last_song:
                 self.previous_songs.append(self.cur_song)
             self.cur_song = self.song_ids.pop(0)
-        elif song in self.first_order_ids:
+        elif self.first_order_ids and song == self.first_order_ids[0]:
             self.previous_songs.append(self.cur_song)
             self.cur_song = self.first_order_ids.pop(0)
         elif song is self.cur_song:
