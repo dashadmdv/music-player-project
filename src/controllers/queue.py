@@ -1,6 +1,7 @@
 from src.services.storage_service import *
 from src.services.api_service import *
 from multipledispatch import dispatch
+from random import shuffle
 
 api_serv = APIService()
 stor_serv = StorageService()
@@ -11,8 +12,10 @@ class Queue(object):
         self.previous_songs = []
         self.first_order_ids = []
         self.song_ids = []
+        self.whole_playlist = []
         self.cur_song = ''
         self.cur_playlist = ''
+        self.shuffle_mode = False
 
     def __new__(cls):
         if not hasattr(cls, 'instance'):
@@ -21,7 +24,14 @@ class Queue(object):
 
     @dispatch(tuple)
     def add(self, song: str or tuple):
-        self.first_order_ids.append((song[0], stor_serv.get_song_path(song[0])))
+        if song is str:
+            url = api_serv.get_song_url(song)
+            if not url:
+                self.first_order_ids.append((song, stor_serv.get_song_path(song)))
+            else:
+                self.first_order_ids.append((song, api_serv.get_song_path(song)))
+        else:
+            self.first_order_ids.append((song[0], song[1]))
 
     @dispatch(tuple, list)
     def add(self, song: tuple, playlist: list):
@@ -30,6 +40,8 @@ class Queue(object):
         self.song_ids.extend(songs_to_add)
         self.previous_songs.extend((playlist[:start_index]))
         self.cur_song = song
+        if not self.shuffle_mode:
+            self.whole_playlist = playlist
 
     def update(self, song: tuple, last_song: bool = False):
         if self.previous_songs and song == self.previous_songs[-1]:
@@ -79,3 +91,24 @@ class Queue(object):
         for item in self.song_ids:
             available = available or bool(item[1])
         return (not self.first_order_ids and not self.song_ids) or not available
+
+    def shuffle(self):
+        self.shuffle_mode = not self.shuffle_mode
+        if self.shuffle_mode:
+            shuffled_playlist = self.whole_playlist.copy()
+            shuffle(shuffled_playlist)
+            if self.cur_song in self.whole_playlist:
+                cur_song = self.cur_song
+            else:
+                cur_song = self.song_ids[0]
+            self.song_ids.clear()
+            self.previous_songs.clear()
+            self.add(cur_song, shuffled_playlist)
+        else:
+            if self.cur_song in self.whole_playlist:
+                cur_song = self.cur_song
+            else:
+                cur_song = self.song_ids[0]
+            self.song_ids.clear()
+            self.previous_songs.clear()
+            self.add(cur_song, self.whole_playlist)

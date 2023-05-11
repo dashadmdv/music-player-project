@@ -105,3 +105,6 @@ class Playback(object):
             pass
         else:
             self.repeat_mode = mode
+
+    def shuffle(self):
+        self.queue.shuffle()
