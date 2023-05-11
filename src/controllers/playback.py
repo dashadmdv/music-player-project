@@ -1,22 +1,21 @@
 import vlc
 from time import sleep
 from src.utils.custom_thread import CustomThread
-from multipledispatch import dispatch
 from src.controllers.queue import Queue
 
 
 class Playback(object):
     def __init__(self):
         self.player = vlc.MediaPlayer()
-        self.paused = False
         self.queue = Queue()
+        self.paused = False
+        self.repeat_mode = 2  # 0 - no repeat, 1 - track repeat, 2 - playlist repeat
 
     def __new__(cls):
         if not hasattr(cls, 'instance'):
             cls.instance = super(Playback, cls).__new__(cls)
         return cls.instance
 
-    @dispatch(tuple, list)
     def play(self, song: tuple, playlist: list = []):
         if not song[1] and not playlist and not self.queue.previous_songs:
             self.next()
@@ -31,27 +30,35 @@ class Playback(object):
             # we want to play doesn't have a source to play it from
             if not song[1]:
                 self.next()
-            self.play(song[1])
+            self.start_play(song[1])
 
-    @dispatch(str)
-    def play(self, source: str):
+    def start_play(self, source: str, no_repeat: bool = False):
         self.stop()
         media = vlc.Media(source)
         self.player.set_media(media)
         self.player.play()
         thread2 = CustomThread(target=self.check_if_ended, args=self.player)
+        if no_repeat:
+            self.set_time(0)
+            self.pause()
         thread2.start()
+        # yes, it's not paused after first time :)
+        if no_repeat:
+            self.set_time(0)
+            self.pause()
         thread2.join()
         ended = thread2.value
-        if ended:
+        if ended and self.repeat_mode == 0 or self.repeat_mode == 2:
             self.next()
+        elif ended and self.repeat_mode == 1:
+            self.start_play(source)
 
     def pause(self):
         self.paused = not self.paused
         self.player.set_pause(int(self.paused))
 
     def stop(self):
-        self.paused = False
+        self.paused = True
         self.player.stop()
 
     def previous(self):
@@ -60,7 +67,7 @@ class Playback(object):
         if not prev[1]:
             self.previous()
         else:
-            self.play(prev[1])
+            self.start_play(prev[1])
 
     def next(self):
         last_song = self.queue.is_empty()
@@ -68,8 +75,12 @@ class Playback(object):
         self.queue.update(next, last_song)
         if not next[1]:
             self.next()
+        elif last_song and self.repeat_mode == 0:
+            self.start_play(next[1], True)
         else:
-            self.play(next[1])
+            if self.repeat_mode == 1:
+                self.change_repeat_mode(2)
+            self.start_play(next[1])
 
     def set_time(self, seconds: int, operator: str = '='):
         cur_time = self.player.get_time()
@@ -88,3 +99,9 @@ class Playback(object):
         if player.get_state() == vlc.State.Ended:
             return True
         return False
+
+    def change_repeat_mode(self, mode: int):
+        if mode not in [0, 1, 2]:
+            pass
+        else:
+            self.repeat_mode = mode
