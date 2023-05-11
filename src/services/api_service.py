@@ -22,7 +22,7 @@ class APIService:
             self.headers = {
                 'Authorization': 'Bearer {token}'.format(token=self.refresh_user_token())
             }
-        self.scope = 'user-library-read user-read-private user-read-email ' + \
+        self.scope = 'user-library-read user-read-private user-read-email user-library-modify ' + \
                      'playlist-modify-public playlist-read-private playlist-modify-private'
 
     # --------------------- AUTHORIZATION RELATED FUNCTIONS -------------------------
@@ -125,7 +125,7 @@ class APIService:
         return playlists_ids
 
     def get_user_library_info(self):
-        response = get(f'{self.base_uri}/me/playlists', headers=self.headers)
+        response = get(f'{self.base_uri}/me/playlists?limit=50', headers=self.headers)
         playlists = response.json()
         for i, playlist in enumerate(playlists['items']):
             print(f'{i + 1} - {playlist["name"]}')
@@ -134,6 +134,44 @@ class APIService:
             minutes = str(duration // 1000 // 60 % 60 + 100)
             print(
                 f'\tDuration: {duration // 1000 // 60 // 60}h:{minutes[1:]}m')
+
+    def get_favourite_songs(self):
+        stor_serv = StorageService()
+        request_url = f'{self.base_uri}/me/tracks'
+        songs_ids = []
+        while True:
+            response = get(request_url, headers=self.headers)
+            songs = response.json()
+            for i, song in enumerate(songs['items']):
+                song = song["track"]
+                if song:
+                    if song['is_local']:
+                        songs_ids.append((song['name'], stor_serv.get_song_path(song['name'])))
+                    else:
+                        songs_ids.append((song['id'], song['preview_url']))
+            request_url = songs['next']
+            if not request_url:
+                break
+        return songs_ids
+
+    def get_favourite_songs_info(self):
+        request_url = f'{self.base_uri}/me/tracks'
+        while True:
+            response = get(request_url, headers=self.headers)
+            songs = response.json()
+            j = 0
+            for i, song in enumerate(songs['items']):
+                song = song["track"]
+                print(
+                    f'{j + 1} - {song["name"]} - {song["artists"][0]["name"]}')
+                print(f'\tUrl: {song["external_urls"]}')
+                seconds = str(song["duration_ms"] // 1000 % 60 + 100)
+                print(
+                    f'\tDuration: {song["duration_ms"] // 1000 // 60}:{seconds[1:]}')
+                j = j + 1
+            request_url = songs['next']
+            if not request_url:
+                break
 
     def create_playlist(self, user_id: str, name: str, public: bool = True, description: str = ''):
         self.refresh_user_token()
@@ -158,6 +196,11 @@ class APIService:
         response = get(f'{self.base_uri}/playlists/{pl_id}', headers=self.headers)
         playlist = response.json()
         return playlist["description"]
+
+    def get_playlist_publicity(self, pl_id: str):
+        response = get(f'{self.base_uri}/playlists/{pl_id}', headers=self.headers)
+        playlist = response.json()
+        return playlist["public"]
 
     def get_playlist_size(self, pl_id: str):
         response = get(f'{self.base_uri}/playlists/{pl_id}', headers=self.headers)
@@ -231,14 +274,17 @@ class APIService:
                data=dumps({"tracks": [{"uri": f"spotify:track:{song_id}"}], "snapshot_id": snapshot}),
                headers=self.headers)
 
-    def update_playlist_info(self, pl_id: str, name: str = None, public: bool = True, description: str = None):
+    def update_playlist_info(self, pl_id: str, name: str = None, public: bool = None, description: str = None):
+        self.refresh_user_token()
         if not name:
             name = self.get_playlist_name(pl_id)
         if not description:
             description = self.get_playlist_description(pl_id)
+        if public is None:
+            public = self.get_playlist_publicity(pl_id)
         put(f'{self.base_uri}/playlists/{pl_id}',
-                       dumps({"name": name, "public": public, "description": description}),
-                       headers=self.headers)
+            dumps({"name": name, "public": public, "description": description}),
+            headers=self.headers)
 
     # --------------------- SONG RELATED FUNCTIONS -------------------------
 
@@ -296,3 +342,9 @@ class APIService:
         print('Release date: ' + song['album']['release_date'])
         print('Cover: ' + song['album']['images'][0]['url'])
         print('Link: ' + str(song['preview_url']))
+
+    def add_song_to_favourites(self, song_id: str):
+        put(f'{self.base_uri}/me/tracks', dumps({"ids": [song_id]}), headers=self.headers)
+
+    def delete_song_from_favourites(self, song_id: str):
+        delete(f'{self.base_uri}/me/tracks', data=dumps({"ids": [song_id]}), headers=self.headers)
