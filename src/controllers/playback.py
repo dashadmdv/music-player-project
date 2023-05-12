@@ -33,7 +33,6 @@ class Playback(object):
             self.start_play(song[1])
 
     def start_play(self, source: str, no_repeat: bool = False):
-        self.stop()
         media = vlc.Media(source)
         self.player.set_media(media)
         self.player.play()
@@ -42,16 +41,12 @@ class Playback(object):
             self.set_time(0)
             self.pause()
         thread2.start()
-        # yes, it's not paused after first time :)
-        if no_repeat:
-            self.set_time(0)
-            self.pause()
         thread2.join()
         ended = thread2.value
         if ended and self.repeat_mode == 0 or self.repeat_mode == 2:
             self.next()
         elif ended and self.repeat_mode == 1:
-            self.start_play(source)
+            self.start_play(self.queue.cur_song[1])
 
     def pause(self):
         self.paused = not self.paused

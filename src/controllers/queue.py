@@ -101,6 +101,8 @@ class Queue(object):
                 cur_song = self.cur_song
             else:
                 cur_song = self.song_ids[0]
+            del shuffled_playlist[shuffled_playlist.index(cur_song)]
+            shuffled_playlist.insert(0, cur_song)
             self.song_ids.clear()
             self.previous_songs.clear()
             self.add(cur_song, shuffled_playlist)
