@@ -23,48 +23,47 @@ class Queue(object):
         return cls.instance
 
     @dispatch(tuple)
-    def add(self, song: str or tuple):
-        if song is str:
-            url = api_serv.get_song_url(song)
-            if not url:
-                self.first_order_ids.append((song, stor_serv.get_song_path(song)))
-            else:
-                self.first_order_ids.append((song, api_serv.get_song_path(song)))
-        else:
-            self.first_order_ids.append((song[0], song[1]))
+    def add(self, song: tuple):
+        self.first_order_ids.append((song[0], song[1]))
 
     @dispatch(tuple, list)
     def add(self, song: tuple, playlist: list):
-        start_index = playlist.index(song)
-        songs_to_add = (playlist[start_index+1:])
-        self.song_ids.extend(songs_to_add)
-        self.previous_songs.extend((playlist[:start_index]))
+        if playlist:
+            start_index = playlist.index(song)
+            songs_to_add = (playlist[start_index + 1:])
+            self.song_ids.extend(songs_to_add)
+            self.previous_songs.extend((playlist[:start_index]))
         self.cur_song = song
         if not self.shuffle_mode:
             self.whole_playlist = playlist
 
     def update(self, song: tuple, last_song: bool = False):
+        song_queue_count = self.previous_songs.count(self.cur_song) + self.first_order_ids.count(self.cur_song) + \
+                           self.song_ids.count(self.cur_song) + 1
+        song_playlist_count = self.whole_playlist.count(self.cur_song)
         if self.previous_songs and song == self.previous_songs[-1]:
-            self.song_ids.insert(0, self.cur_song)
+            if not (song_queue_count > song_playlist_count):
+                self.song_ids.insert(0, self.cur_song)
             self.cur_song = self.previous_songs.pop()
         elif self.song_ids and song == self.song_ids[0]:
             if not last_song:
-                self.previous_songs.append(self.cur_song)
+                if not (song_queue_count > song_playlist_count):
+                    self.previous_songs.append(self.cur_song)
             self.cur_song = self.song_ids.pop(0)
         elif self.first_order_ids and song == self.first_order_ids[0]:
-            self.previous_songs.append(self.cur_song)
+            if not (song_queue_count > song_playlist_count):
+                self.previous_songs.append(self.cur_song)
             self.cur_song = self.first_order_ids.pop(0)
         elif song is self.cur_song:
             pass
         else:
-            self.reload(song, [])
+            self.reload(song, [song])
 
     def reload(self, song: tuple, playlist: list):
         self.clear()
         self.add(song, playlist)
 
     def clear(self):
-        self.first_order_ids.clear()
         self.song_ids.clear()
         self.previous_songs.clear()
 
@@ -77,11 +76,13 @@ class Queue(object):
     def next(self):
         if not self.first_order_ids:
             if self.is_empty():
-                self.song_ids = self.previous_songs.copy()
-                self.previous_songs.clear()
+                if self.previous_songs:
+                    self.song_ids = self.previous_songs.copy()
+                    self.previous_songs.clear()
+                else:
+                    return self.cur_song
             return self.song_ids[0]
         else:
-            self.cur_song = self.first_order_ids[0]
             return self.first_order_ids[0]
 
     def is_empty(self):
