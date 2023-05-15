@@ -185,12 +185,17 @@ class APIService:
         self.refresh_user_token()
         delete(f'{self.base_uri}/playlists/{pl_id}/followers', headers=self.headers)
 
-    # --------------------- PLAYLIST RELATED FUNCTIONS -------------------------
+    # --------------------- PLAYLIST/ALBUM RELATED FUNCTIONS -------------------------
 
     def get_playlist_name(self, pl_id: str):
         response = get(f'{self.base_uri}/playlists/{pl_id}', headers=self.headers)
         playlist = response.json()
         return playlist["name"]
+
+    def get_album_name(self, album_id):
+        response = get(f'{self.base_uri}/albums/{album_id}', headers=self.headers)
+        album = response.json()
+        return album["name"]
 
     def get_playlist_description(self, pl_id: str):
         response = get(f'{self.base_uri}/playlists/{pl_id}', headers=self.headers)
@@ -207,10 +212,14 @@ class APIService:
         playlist = response.json()
         return playlist["tracks"]["total"]
 
+    def get_album_size(self, album_id):
+        response = get(f'{self.base_uri}/albums/{album_id}', headers=self.headers)
+        album = response.json()
+        return album["total_tracks"]
+
     def get_playlist_snapshot(self, pl_id: str):
         response = get(f'{self.base_uri}/playlists/{pl_id}', headers=self.headers)
         playlist = response.json()
-
         return playlist["snapshot_id"]
 
     def get_playlist_duration(self, pl_id: str, length: int = None):
@@ -222,6 +231,18 @@ class APIService:
             songs = response.json()
             for i, song in enumerate(songs['items']):
                 song = song["track"]
+                if song:
+                    duration += song["duration_ms"]
+        return duration
+
+    def get_album_duration(self, album_id: str, length: int = None):
+        if not length:
+            length = self.get_album_size(album_id)
+        duration = 0
+        for j in range(ceil(length / 100)):
+            response = get(f'{self.base_uri}/albums/{album_id}/tracks?offset={j * 100}', headers=self.headers)
+            songs = response.json()
+            for i, song in enumerate(songs['items']):
                 if song:
                     duration += song["duration_ms"]
         return duration
@@ -260,6 +281,24 @@ class APIService:
                     seconds = str(song["duration_ms"] // 1000 % 60 + 100)
                     print(
                         f'\tDuration: {song["duration_ms"] // 1000 // 60}:{seconds[1:]}')
+
+    def get_album_songs_info(self, album_id: str, length: int = None):
+        songs_ids = []
+        if not length:
+            length = self.get_album_size(album_id)
+        else:
+            for j in range(ceil(length / 100)):
+                response = get(f'{self.base_uri}/albums/{album_id}/tracks?offset={j * 100}', headers=self.headers)
+                songs = response.json()
+                for i, song in enumerate(songs['items']):
+                    song = song["track"]
+                    print(
+                        f'{i + 1 + j * 100} - {song["name"]} - {song["artists"][0]["name"]}')
+                    seconds = str(song["duration_ms"] // 1000 % 60 + 100)
+                    print(
+                        f'\tDuration: {song["duration_ms"] // 1000 // 60}:{seconds[1:]}')
+                    songs_ids.append((song['id'], song['preview_url']))
+        return songs_ids
 
     def add_song_to_playlist(self, pl_id: str, song_id: str, position: int = 0):
         self.refresh_user_token()
@@ -348,3 +387,33 @@ class APIService:
 
     def delete_song_from_favourites(self, song_id: str):
         delete(f'{self.base_uri}/me/tracks', data=dumps({"ids": [song_id]}), headers=self.headers)
+
+    # --------------------- SEARCH RELATED FUNCTIONS -------------------------
+
+    def search(self, query: str, search_type: str = 'track'):
+        response = get(f'{self.base_uri}/search', params={'q': query, 'type': search_type}, headers=self.headers)
+        search_results = response.json()
+        search_items = []
+        for i, item in enumerate(search_results[search_type + 's']['items']):
+            search_items.append(item['id'])
+            if search_type == 'track':
+                print(
+                    f'{i + 1} - {item["name"]} - {item["artists"][0]["name"]}')
+                seconds = str(item["duration_ms"] // 1000 % 60 + 100)
+                print(
+                    f'\tDuration: {item["duration_ms"] // 1000 // 60}:{seconds[1:]}')
+            elif search_type == 'playlist':
+                print(f'{i + 1} - {item["name"]}')
+                print(f'Number of tracks: {item["tracks"]["total"]}')
+                duration = self.get_playlist_duration(item['id'])
+                minutes = str(duration // 1000 // 60 % 60 + 100)
+                print(
+                    f'\tDuration: {duration // 1000 // 60 // 60}h:{minutes[1:]}m')
+            elif search_type == 'album':
+                print(f'{i + 1} - {item["name"]}')
+                print(f'Number of tracks: {item["total_tracks"]}')
+                duration = self.get_album_duration(item['id'])
+                minutes = str(duration // 1000 // 60 % 60 + 100)
+                print(
+                    f'\tDuration: {duration // 1000 // 60 // 60}h:{minutes[1:]}m')
+        return search_items
