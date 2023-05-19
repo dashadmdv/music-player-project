@@ -3,6 +3,7 @@ from entities.playlist import *
 from services.api_service import *
 from services.storage_service import *
 from controllers.playback import *
+from utils.song_factory import *
 from threading import Thread
 
 
@@ -182,8 +183,7 @@ class CLIDialogue:
                 pass
 
     def song_dialogue(self, song, playlist):
-        if type(song) is str:
-            song = (song, self.api_serv.get_song_url(song))
+        song = SongFactory.create_song(song)
         while True:
             try:
                 choice = int(input('What do you want to do with the song?\n1 - show info, 2 - play, ' +
@@ -195,14 +195,14 @@ class CLIDialogue:
             if choice == 0:
                 break
             elif choice == 1:
-                self.api_serv.get_song_info(song[0])
+                song.get_song_info()
                 break
             elif choice == 2:
                 if playlist:
-                    thread = Thread(target=self.pl.play, args=(song, playlist.songs),
+                    thread = Thread(target=self.pl.play, args=((song.id, song.source), playlist.songs),
                                     daemon=True)
                 else:
-                    thread = Thread(target=self.pl.play, args=(song, []),
+                    thread = Thread(target=self.pl.play, args=((song.id, song.source), []),
                                     daemon=True)
                 thread.start()
                 self.playback_dialogue()
@@ -214,14 +214,14 @@ class CLIDialogue:
                         pl_choice = int(input('Select playlist to add song to(by index), go back - 0: '))
                     except ValueError:
                         continue
-                    self.api_serv.add_song_to_playlist(self.user.playlists[pl_choice - 1], song[0])
+                    self.api_serv.add_song_to_playlist(self.user.playlists[pl_choice - 1], song.id)
                     break
                 break
             elif choice == 4:
-                self.api_serv.add_song_to_favourites(song[0])
+                self.api_serv.add_song_to_favourites(song.id)
                 break
             elif choice == 5:
-                self.pl.queue.add(song)
+                self.pl.queue.add((song.id, song.source))
                 break
 
     def playback_dialogue(self):
@@ -254,13 +254,9 @@ class CLIDialogue:
                     except ValueError:
                         continue
             if choice == 5:
-                song = self.pl.queue.cur_song
-                if song[1][:8] == 'https://':
-                    print('Track: ', self.api_serv.get_song_title(song[0]), ' - ',
-                          self.api_serv.get_song_artist(song[0]))
-                else:
-                    artist = self.stor_serv.get_song_artist(song[1])
-                    print('Track: ', song[0] + (f' - {artist}' if artist else ''))
+                song = SongFactory.create_song(self.pl.queue.cur_song)
+                artist = song.artist
+                print('Track: ', song.title + (f' - {artist}' if artist else ''))
                 seconds = str(self.pl.player.get_time() // 1000 % 60 + 100)
                 print(f'Time: {self.pl.player.get_time() // 1000 // 60}:{seconds[1:]}')
                 print('Player state: ', self.pl.player.get_state())

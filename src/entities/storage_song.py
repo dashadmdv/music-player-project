@@ -10,15 +10,17 @@ class StorageSong:
     def __init__(self, title: str or tuple):
         if type(title) is tuple:
             self.title = title[0]
-            self.path = title[1]
+            self.id = self.title
+            self.source = title[1]
         else:
             self.title = title
-            self.path = stor_serv.get_song_path(self.title)
-        self.artist = stor_serv.get_song_artist(self.path)
-        self.album = stor_serv.get_song_album(self.path)
-        self.duration = stor_serv.get_song_duration(self.path)
-        self.cover = stor_serv.get_song_cover(self.path)
-        self.date = stor_serv.get_song_date(self.path)
+            self.id = self.title
+            self.source = stor_serv.get_song_path(self.title)
+        self.artist = stor_serv.get_song_artist(self.source)
+        self.album = stor_serv.get_song_album(self.source)
+        self.duration = stor_serv.get_song_duration(self.source)
+        self.cover = stor_serv.get_song_cover(self.source)
+        self.date = stor_serv.get_song_date(self.source)
 
     def get_song_info(self):
         return stor_serv.get_song_info(self.title)

@@ -12,7 +12,7 @@ class APISong:
         self.duration = api_serv.get_song_duration(self.id)
         self.cover = api_serv.get_song_cover(self.id)
         self.date = api_serv.get_song_date(self.id)
-        self.preview_url = api_serv.get_song_url(self.id)
+        self.source = api_serv.get_song_url(self.id)
         self.genre = []
 
     def get_song_info(self):
