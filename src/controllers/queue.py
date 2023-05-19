@@ -37,6 +37,12 @@ class Queue(object):
         if not self.shuffle_mode:
             self.whole_playlist = playlist
 
+    @dispatch(str, list)
+    def add(self, song: str, playlist: list):
+        song = (song, api_serv.get_song_url(song))
+        playlist = [(item, api_serv.get_song_url(item)) for item in playlist]
+        self.add(song, playlist)
+
     def update(self, song: tuple, last_song: bool = False):
         song_queue_count = self.previous_songs.count(self.cur_song) + self.first_order_ids.count(self.cur_song) + \
                            self.song_ids.count(self.cur_song) + 1

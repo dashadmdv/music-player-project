@@ -300,11 +300,22 @@ class APIService:
                     songs_ids.append((song['id'], song['preview_url']))
         return songs_ids
 
+    def check_if_self_owned(self, pl_id: str):
+        response = get(f'{self.base_uri}/playlists/{pl_id}', headers=self.headers)
+        playlist = response.json()
+        try:
+            if playlist['owner']['id'] == self.get_current_user():
+                return True
+            else:
+                return False
+        except:
+            return False
+
     def add_song_to_playlist(self, pl_id: str, song_id: str, position: int = 0):
         self.refresh_user_token()
-        post(f'{self.base_uri}/playlists/{pl_id}/tracks',
+        print(post(f'{self.base_uri}/playlists/{pl_id}/tracks',
              dumps({"uris": [f"spotify:track:{song_id}"], "position": position}),
-             headers=self.headers)
+             headers=self.headers))
 
     def delete_song_from_playlist(self, pl_id: str, song_id: str):
         self.refresh_user_token()
