@@ -6,7 +6,7 @@ from controllers.playback import *
 from threading import Thread
 
 
-# TO BE DONE: PLAYLIST&SONG DIALOGUE, SEARCH ITEMS DIALOGUE + REFACTORING
+# TO BE DONE: SEARCH ITEMS DIALOGUE(PLAYLIST + ALBUM) + SETTINGS + REFACTORING
 
 
 class CLIDialogue:
@@ -25,66 +25,18 @@ class CLIDialogue:
                     input('Choose a folder to open(1 - search, 2 - my library, 3 - settings), 0 - exit the app: '))
             except ValueError:
                 continue
-            if nav_choice == 1:
-                search_query = input('What do you want to listen? ')
-                try:
-                    search_type = int(input('What are you looking for? 1 - track, 2 - album, 3 - playlist: '))
-                except ValueError:
-                    search_type = 1
-                if search_type == 1:
-                    search_type = 'track'
-                elif search_type == 2:
-                    search_type = 'album'
-                elif search_type == 3:
-                    search_type = 'playlist'
-                search_items = self.api_serv.search(search_query, search_type)
-
-            if nav_choice == 3:
-                pass
             if nav_choice == 0:
                 print('Goodbye then!')
                 break
-            if nav_choice == 2:
+            elif nav_choice == 1:
+                self.search_dialogue()
+            elif nav_choice == 2:
                 if not self.user:
                     print("Authorize if you want to access your library :) You can do it in the SETTINGS folder!")
                     continue
-                while True:
-                    try:
-                        show_choice = int(
-                            input('Choose what you want to open(whole library - 1, only your playlists - 2), ' +
-                                  'back to navigation - 0: '))
-                    except ValueError:
-                        continue
-                    if show_choice == 1:
-                        self.api_serv.get_user_library_info()
-                        library = self.api_serv.get_user_library()
-                    elif show_choice == 2:
-                        self.user.get_user_playlists_info()
-                    else:
-                        break
-
-                    while True:
-                        try:
-                            choice = int(input('Select playlist(by index), go back - 0: '))
-                        except ValueError:
-                            continue
-
-                        if choice == 0:
-                            break
-                        if show_choice == 1:
-                            if choice > len(library):
-                                continue
-                            playlist = Playlist(id=str(library[choice - 1]))
-                        else:
-                            if choice > len(self.user.playlists):
-                                continue
-                            playlist = Playlist(id=str(self.user.playlists[choice - 1]))
-
-                        # I play 3rd last song automatically - playlist & song dialogue will be done later
-                        thread = Thread(target=self.pl.play, args=(playlist.songs[-3], playlist.songs), daemon=True)
-                        thread.start()
-
-                        self.playback_dialogue()
+                self.library_dialogue()
+            elif nav_choice == 3:
+                pass
             else:
                 continue
 
@@ -92,7 +44,8 @@ class CLIDialogue:
         if not self.api_serv.refresh_token:
             while True:
                 try:
-                    auth_choice = int(input('Hello! You are not authorized :( Do you want to sign in? yes - 1, no - 0'))
+                    auth_choice = int(
+                        input('Hello! You are not authorized :( Do you want to sign in? yes - 1, no - 0: '))
                     break
                 except ValueError:
                     print('Type something correct please!')
@@ -109,6 +62,153 @@ class CLIDialogue:
         else:
             print(f'Hello, {self.api_serv.get_user_name(self.api_serv.get_current_user())}!')
             self.user = User(self.api_serv.get_current_user())
+
+    def search_dialogue(self):
+        search_query = input('What do you want to listen? ')
+        try:
+            search_type = int(input('What are you looking for? 1 - track, 2 - album, 3 - playlist: '))
+        except ValueError:
+            search_type = 1
+        if search_type == 1:
+            search_type = 'track'
+        elif search_type == 2:
+            search_type = 'album'
+        elif search_type == 3:
+            search_type = 'playlist'
+        search_items = self.api_serv.search(search_query, search_type)
+
+        if search_type == 'track':
+            while True:
+                try:
+                    song_choice = int(input('Select song(by index), go back - 0: '))
+                except ValueError:
+                    continue
+                if song_choice == 0:
+                    break
+                elif song_choice > 20:
+                    print("Try again!")
+                    continue
+                self.song_dialogue(search_items[song_choice - 1], playlist=[])
+                break
+
+    def library_dialogue(self):
+        while True:
+            try:
+                show_choice = int(
+                    input('Choose what you want to open(whole library - 1, only your playlists - 2), ' +
+                          'back to navigation - 0: '))
+            except ValueError:
+                continue
+            if show_choice == 1:
+                self.api_serv.get_user_library_info()
+                library = self.api_serv.get_user_library()
+            elif show_choice == 2:
+                self.user.get_user_playlists_info()
+            else:
+                break
+
+            while True:
+                try:
+                    choice = int(input('Select playlist(by index), go back - 0: '))
+                except ValueError:
+                    continue
+
+                if choice == 0:
+                    break
+                if show_choice == 1:
+                    if choice > len(library):
+                        continue
+                    playlist = Playlist(id=str(library[choice - 1]))
+                else:
+                    if choice > len(self.user.playlists):
+                        continue
+                    playlist = Playlist(id=str(self.user.playlists[choice - 1]))
+
+                self.playlist_dialogue(playlist)
+                break
+
+    def playlist_dialogue(self, playlist: Playlist):
+        while True:
+            try:
+                extended_interactions = \
+                    '4 - change info, 5 - delete playlist, ' if api_serv.check_if_self_owned(playlist.id) else ""
+                choice = int(input('What do you want to do with the playlist?\n1 - show short info, 2 - open songs, '
+                                   '3 - play, ' + f'{extended_interactions}go back - 0: '))
+            except ValueError:
+                continue
+
+            if choice == 0:
+                break
+            elif choice == 1:
+                pass
+            elif choice == 2:
+                playlist.get_playlist_info()
+                while True:
+                    try:
+                        song_choice = int(input('Select song(by index), go back - 0: '))
+                    except ValueError:
+                        continue
+                    if song_choice == 0:
+                        break
+                    elif song_choice > playlist.size:
+                        print("There is no such song in the playlist! Try again!")
+                        continue
+
+                    self.song_dialogue(playlist.songs[song_choice - 1], playlist)
+                    break
+            elif choice == 3:
+                thread = Thread(target=self.pl.play, args=(playlist.songs[0], playlist.songs),
+                                daemon=True)
+                thread.start()
+                self.playback_dialogue()
+                break
+            elif choice == 4:
+                pass
+            elif choice == 5:
+                pass
+
+    def song_dialogue(self, song, playlist):
+        if type(song) is str:
+            song = (song, self.api_serv.get_song_url(song))
+        while True:
+            try:
+                choice = int(input('What do you want to do with the song?\n1 - show info, 2 - play, ' +
+                                   '3 - add to playlist, 4 - add to favourites, 5 - add to queue, ' +
+                                   'go back - 0: '))
+            except ValueError:
+                continue
+
+            if choice == 0:
+                break
+            elif choice == 1:
+                self.api_serv.get_song_info(song[0])
+                break
+            elif choice == 2:
+                if playlist:
+                    thread = Thread(target=self.pl.play, args=(song, playlist.songs),
+                                    daemon=True)
+                else:
+                    thread = Thread(target=self.pl.play, args=(song, []),
+                                    daemon=True)
+                thread.start()
+                self.playback_dialogue()
+                break
+            elif choice == 3:
+                while True:
+                    try:
+                        self.user.get_user_playlists_info()
+                        pl_choice = int(input('Select playlist to add song to(by index), go back - 0: '))
+                    except ValueError:
+                        continue
+                    self.api_serv.add_song_to_playlist(self.user.playlists[pl_choice - 1], song[0])
+                    break
+                break
+            elif choice == 4:
+                self.api_serv.add_song_to_favourites(song[0])
+                break
+            elif choice == 5:
+                self.pl.queue.add(song)
+                break
 
     def playback_dialogue(self):
         while True:
