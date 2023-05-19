@@ -6,7 +6,7 @@ from controllers.playback import *
 from threading import Thread
 
 
-# TO BE DONE: SEARCH ITEMS DIALOGUE(ALBUM) + SETTINGS + REFACTORING
+# TO BE DONE: SETTINGS + REFACTORING
 
 
 class CLIDialogue:
@@ -90,10 +90,10 @@ class CLIDialogue:
                     continue
                 self.song_dialogue(search_items[song_choice - 1], playlist=[])
                 break
-        if search_type == 'playlist':
+        elif search_type == 'playlist' or search_type == 'album':
             while True:
                 try:
-                    choice = int(input('Select playlist(by index), go back - 0: '))
+                    choice = int(input(f'Select {search_type}(by index), go back - 0: '))
                 except ValueError:
                     continue
                 if choice == 0:
@@ -101,7 +101,7 @@ class CLIDialogue:
                 elif choice > 20:
                     print("Try again!")
                     continue
-                playlist = Playlist(id=str(search_items[choice - 1]))
+                playlist = Playlist(id=str(search_items[choice - 1]), album=(search_type == 'album'))
                 self.playlist_dialogue(playlist)
                 break
 
