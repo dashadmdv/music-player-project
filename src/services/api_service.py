@@ -282,6 +282,18 @@ class APIService:
                     print(
                         f'\tDuration: {song["duration_ms"] // 1000 // 60}:{seconds[1:]}')
 
+    def get_album_songs(self, album_id: str, length: int = None):
+        songs_ids = []
+        if not length:
+            length = self.get_album_size(album_id)
+        else:
+            for j in range(ceil(length / 100)):
+                response = get(f'{self.base_uri}/albums/{album_id}/tracks?offset={j * 100}', headers=self.headers)
+                songs = response.json()
+                for i, song in enumerate(songs['items']):
+                    songs_ids.append((song['id'], song['preview_url']))
+        return songs_ids
+
     def get_album_songs_info(self, album_id: str, length: int = None):
         songs_ids = []
         if not length:
@@ -291,7 +303,6 @@ class APIService:
                 response = get(f'{self.base_uri}/albums/{album_id}/tracks?offset={j * 100}', headers=self.headers)
                 songs = response.json()
                 for i, song in enumerate(songs['items']):
-                    song = song["track"]
                     print(
                         f'{i + 1 + j * 100} - {song["name"]} - {song["artists"][0]["name"]}')
                     seconds = str(song["duration_ms"] // 1000 % 60 + 100)
