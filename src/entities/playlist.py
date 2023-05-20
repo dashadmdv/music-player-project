@@ -26,6 +26,12 @@ class Playlist:
 
     def get_playlist_info(self):
         if not self.album:
+            return api_serv.get_playlist_info(self.id)
+        else:
+            return api_serv.get_album_info(self.id)
+
+    def get_playlist_songs_info(self):
+        if not self.album:
             return api_serv.get_playlist_songs_info(self.id, self.size)
         else:
             return api_serv.get_album_songs_info(self.id, self.size)

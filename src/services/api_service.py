@@ -110,10 +110,6 @@ class APIService:
                 count = count + 1
                 print(f'{count} - {playlist["name"]}')
                 print(f'Number of tracks: {playlist["tracks"]["total"]}')
-                duration = self.get_playlist_duration(playlist['id'])
-                minutes = str(duration // 1000 // 60 % 60 + 100)
-                print(
-                    f'\tDuration: {duration // 1000 // 60 // 60}h:{minutes[1:]}m')
 
     def get_user_library(self):
         response = get(f'{self.base_uri}/me/playlists?limit=50', headers=self.headers)
@@ -122,6 +118,7 @@ class APIService:
 
         for i, playlist in enumerate(playlists['items']):
             playlists_ids.append(playlist['id'])
+        playlists_ids.append('favs')
         return playlists_ids
 
     def get_user_library_info(self):
@@ -130,10 +127,9 @@ class APIService:
         for i, playlist in enumerate(playlists['items']):
             print(f'{i + 1} - {playlist["name"]}')
             print(f'Number of tracks: {playlist["tracks"]["total"]}')
-            duration = self.get_playlist_duration(playlist['id'])
-            minutes = str(duration // 1000 // 60 % 60 + 100)
-            print(
-                f'\tDuration: {duration // 1000 // 60 // 60}h:{minutes[1:]}m')
+        favs = self.get_favourite_songs()
+        print(f'{len(playlists["items"]) + 1} - Favourite tracks')
+        print(f'Number of tracks: {len(favs)}')
 
     def get_favourite_songs(self):
         stor_serv = StorageService()
@@ -164,10 +160,10 @@ class APIService:
                 song = song["track"]
                 print(
                     f'{j + 1} - {song["name"]} - {song["artists"][0]["name"]}')
-                print(f'\tUrl: {song["external_urls"]}')
+                print(f'Url: {song["external_urls"]}')
                 seconds = str(song["duration_ms"] // 1000 % 60 + 100)
                 print(
-                    f'\tDuration: {song["duration_ms"] // 1000 // 60}:{seconds[1:]}')
+                    f'Duration: {song["duration_ms"] // 1000 // 60}:{seconds[1:]}')
                 j = j + 1
             request_url = songs['next']
             if not request_url:
@@ -196,11 +192,6 @@ class APIService:
         response = get(f'{self.base_uri}/albums/{album_id}', headers=self.headers)
         album = response.json()
         return album["name"]
-
-    def get_playlist_description(self, pl_id: str):
-        response = get(f'{self.base_uri}/playlists/{pl_id}', headers=self.headers)
-        playlist = response.json()
-        return playlist["description"]
 
     def get_playlist_publicity(self, pl_id: str):
         response = get(f'{self.base_uri}/playlists/{pl_id}', headers=self.headers)
@@ -247,6 +238,59 @@ class APIService:
                     duration += song["duration_ms"]
         return duration
 
+    def get_fav_duration(self):
+        request_url = f'{self.base_uri}/me/tracks'
+        duration = 0
+        while True:
+            response = get(request_url, headers=self.headers)
+            songs = response.json()
+            for i, song in enumerate(songs['items']):
+                song = song["track"]
+                if song:
+                    duration += song["duration_ms"]
+            request_url = songs['next']
+            if not request_url:
+                break
+        return duration
+
+    def get_playlist_info(self, pl_id: str):
+        response = get(f'{self.base_uri}/playlists/{pl_id}', headers=self.headers)
+        playlist = response.json()
+        print(f'Name: {playlist["name"]}')
+        print(f'Description: {playlist["description"]}')
+        print(f'Number of tracks: {playlist["tracks"]["total"]}')
+        print(f'Cover: {playlist["images"][0]["url"]}')
+        duration = self.get_playlist_duration(playlist['id'])
+        minutes = str(duration // 1000 // 60 % 60 + 100)
+        print(
+            f'Duration: {duration // 1000 // 60 // 60}h:{minutes[1:]}m')
+
+    def get_album_info(self, album_id: str):
+        response = get(f'{self.base_uri}/albums/{album_id}', headers=self.headers)
+        album = response.json()
+        print(f'Name: {album["name"]}')
+        artists = []
+        for i, artist in enumerate(album['artists']):
+            artists.append(artist['name'])
+        artists = ', '.join(artists)
+        print(f'Artist: {artists}')
+        print(f'Number of tracks: {album["total_tracks"]}')
+        print('Release date: ' + album['release_date'])
+        print(f'Cover: {album["images"][0]["url"]}')
+        duration = self.get_album_duration(album['id'])
+        minutes = str(duration // 1000 // 60 % 60 + 100)
+        print(
+            f'Duration: {duration // 1000 // 60 // 60}h:{minutes[1:]}m')
+
+    def get_favorites_playlist_info(self):
+        favs = self.get_favourite_songs()
+        print(f'Name: Favourite tracks')
+        print(f'Number of tracks: {len(favs)}')
+        duration = self.get_fav_duration()
+        minutes = str(duration // 1000 // 60 % 60 + 100)
+        print(
+            f'Duration: {duration // 1000 // 60 // 60}h:{minutes[1:]}m')
+
     def get_playlist_songs(self, pl_id: str, length: int = None):
         stor_serv = StorageService()
         songs_ids = []
@@ -277,10 +321,9 @@ class APIService:
                     song = song["track"]
                     print(
                         f'{i + 1 + j * 100} - {song["name"]} - {song["artists"][0]["name"]}')
-                    print(f'\tUrl: {song["external_urls"]}')
                     seconds = str(song["duration_ms"] // 1000 % 60 + 100)
                     print(
-                        f'\tDuration: {song["duration_ms"] // 1000 // 60}:{seconds[1:]}')
+                        f'Duration: {song["duration_ms"] // 1000 // 60}:{seconds[1:]}')
 
     def get_album_songs(self, album_id: str, length: int = None):
         songs_ids = []
@@ -307,7 +350,7 @@ class APIService:
                         f'{i + 1 + j * 100} - {song["name"]} - {song["artists"][0]["name"]}')
                     seconds = str(song["duration_ms"] // 1000 % 60 + 100)
                     print(
-                        f'\tDuration: {song["duration_ms"] // 1000 // 60}:{seconds[1:]}')
+                        f'Duration: {song["duration_ms"] // 1000 // 60}:{seconds[1:]}')
                     songs_ids.append((song['id'], song['preview_url']))
         return songs_ids
 
@@ -315,18 +358,15 @@ class APIService:
         response = get(f'{self.base_uri}/playlists/{pl_id}', headers=self.headers)
         playlist = response.json()
         try:
-            if playlist['owner']['id'] == self.get_current_user():
-                return True
-            else:
-                return False
+            return playlist['owner']['id'] == self.get_current_user()
         except:
             return False
 
     def add_song_to_playlist(self, pl_id: str, song_id: str, position: int = 0):
         self.refresh_user_token()
-        print(post(f'{self.base_uri}/playlists/{pl_id}/tracks',
+        post(f'{self.base_uri}/playlists/{pl_id}/tracks',
              dumps({"uris": [f"spotify:track:{song_id}"], "position": position}),
-             headers=self.headers))
+             headers=self.headers)
 
     def delete_song_from_playlist(self, pl_id: str, song_id: str):
         self.refresh_user_token()
@@ -337,72 +377,45 @@ class APIService:
 
     def update_playlist_info(self, pl_id: str, name: str = None, public: bool = None, description: str = None):
         self.refresh_user_token()
+        response = get(f'{self.base_uri}/playlists/{pl_id}', headers=self.headers)
+        playlist = response.json()
         if not name:
-            name = self.get_playlist_name(pl_id)
+            name = playlist["name"]
         if not description:
-            description = self.get_playlist_description(pl_id)
+            description = playlist["description"]
         if public is None:
-            public = self.get_playlist_publicity(pl_id)
+            public = playlist["public"]
         put(f'{self.base_uri}/playlists/{pl_id}',
             dumps({"name": name, "public": public, "description": description}),
             headers=self.headers)
 
     # --------------------- SONG RELATED FUNCTIONS -------------------------
 
-    def get_song_title(self, song_id: str):
-        response = get(f'{self.base_uri}/tracks/{song_id}', headers=self.headers)
-        song = response.json()
-        return song['name']
-
-    def get_song_artist(self, song_id: str):
+    def get_song(self, song_id: str):
         response = get(f'{self.base_uri}/tracks/{song_id}', headers=self.headers)
         song = response.json()
         artists = []
         for i, artist in enumerate(song['artists']):
             artists.append(artist['name'])
-        return ', '.join(artists)
-
-    def get_song_album(self, song_id: str):
-        response = get(f'{self.base_uri}/tracks/{song_id}', headers=self.headers)
-        song = response.json()
-        return song['album']['id']
-
-    def get_song_duration(self, song_id: str):
-        response = get(f'{self.base_uri}/tracks/{song_id}', headers=self.headers)
-        song = response.json()
-        return song['duration_ms']
-
-    def get_song_cover(self, song_id: str):
-        response = get(f'{self.base_uri}/tracks/{song_id}', headers=self.headers)
-        song = response.json()
-        return song['album']['images'][0]['url']
-
-    def get_song_date(self, song_id: str):
-        response = get(f'{self.base_uri}/tracks/{song_id}', headers=self.headers)
-        song = response.json()
-        return song['album']['release_date']
+        artists = ', '.join(artists)
+        return dict(title=song['name'], album_id=song['album']['id'], artist=artists,
+                    duration=song['duration_ms'], cover=song['album']['images'][0]['url'],
+                    date=song['album']['release_date'], source=song['preview_url'])
 
     def get_song_url(self, song_id: str):
         response = get(f'{self.base_uri}/tracks/{song_id}', headers=self.headers)
         song = response.json()
         return song['preview_url']
 
-    def get_song_uri(self, song_id: str):
-        response = get(f'{self.base_uri}/tracks/{song_id}', headers=self.headers)
-        song = response.json()
-        return song['uri']
-
     def get_song_info(self, song_id: str):
-        response = get(f'{self.base_uri}/tracks/{song_id}', headers=self.headers)
-        song = response.json()
-        print(song['name'] + ' - ' + self.get_song_artist(song_id))
-        seconds = str(song["duration_ms"] // 1000 % 60 + 100)
+        song = self.get_song(song_id)
+        print(song['title'] + ' - ' + song['artist'])
+        seconds = str(song["duration"] // 1000 % 60 + 100)
         print(
-            f'Duration: {song["duration_ms"] // 1000 // 60}:{seconds[1:]}')
-        print('Album: ' + song['album']['name'])
-        print('Release date: ' + song['album']['release_date'])
-        print('Cover: ' + song['album']['images'][0]['url'])
-        print('Link: ' + str(song['preview_url']))
+            f'Duration: {song["duration"] // 1000 // 60}:{seconds[1:]}')
+        print('Album: ' + self.get_album_name(song['album_id']))
+        print('Release date: ' + song['date'])
+        print('Cover: ' + song['cover'])
 
     def add_song_to_favourites(self, song_id: str):
         put(f'{self.base_uri}/me/tracks', dumps({"ids": [song_id]}), headers=self.headers)
@@ -423,19 +436,19 @@ class APIService:
                     f'{i + 1} - {item["name"]} - {item["artists"][0]["name"]}')
                 seconds = str(item["duration_ms"] // 1000 % 60 + 100)
                 print(
-                    f'\tDuration: {item["duration_ms"] // 1000 // 60}:{seconds[1:]}')
+                    f'Duration: {item["duration_ms"] // 1000 // 60}:{seconds[1:]}')
             elif search_type == 'playlist':
                 print(f'{i + 1} - {item["name"]}')
                 print(f'Number of tracks: {item["tracks"]["total"]}')
                 duration = self.get_playlist_duration(item['id'])
                 minutes = str(duration // 1000 // 60 % 60 + 100)
                 print(
-                    f'\tDuration: {duration // 1000 // 60 // 60}h:{minutes[1:]}m')
+                    f'Duration: {duration // 1000 // 60 // 60}h:{minutes[1:]}m')
             elif search_type == 'album':
                 print(f'{i + 1} - {item["name"]}')
                 print(f'Number of tracks: {item["total_tracks"]}')
                 duration = self.get_album_duration(item['id'])
                 minutes = str(duration // 1000 // 60 % 60 + 100)
                 print(
-                    f'\tDuration: {duration // 1000 // 60 // 60}h:{minutes[1:]}m')
+                    f'Duration: {duration // 1000 // 60 // 60}h:{minutes[1:]}m')
         return search_items

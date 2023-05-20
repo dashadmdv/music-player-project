@@ -5,15 +5,15 @@ api_serv = APIService()
 
 class APISong:
     def __init__(self, id):
+        template = api_serv.get_song(id)
         self.id = id
-        self.title = api_serv.get_song_title(self.id)
-        self.artist = api_serv.get_song_artist(self.id)
-        self.album_id = api_serv.get_song_album(self.id)
-        self.duration = api_serv.get_song_duration(self.id)
-        self.cover = api_serv.get_song_cover(self.id)
-        self.date = api_serv.get_song_date(self.id)
-        self.source = api_serv.get_song_url(self.id)
-        self.genre = []
+        self.title = template['title']
+        self.artist = template['artist']
+        self.album_id = template['album_id']
+        self.duration = template['duration']
+        self.cover = template['cover']
+        self.date = template['date']
+        self.source = template['source']
 
     def get_song_info(self):
         return api_serv.get_song_info(self.id)
