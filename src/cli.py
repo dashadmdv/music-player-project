@@ -114,13 +114,15 @@ class CLIDialogue:
                           'back to navigation - 0: '))
             except ValueError:
                 continue
-            if show_choice == 1:
+            if show_choice == 0:
+                break
+            elif show_choice == 1:
                 self.api_serv.get_user_library_info()
                 library = self.api_serv.get_user_library()
             elif show_choice == 2:
                 self.user.get_user_playlists_info()
             else:
-                break
+                continue
 
             while True:
                 try:
@@ -128,18 +130,23 @@ class CLIDialogue:
                 except ValueError:
                     continue
 
+                playlist = None
                 if choice == 0:
                     break
                 if show_choice == 1:
                     if choice > len(library):
                         continue
-                    playlist = Playlist(id=str(library[choice - 1]))
+                    if library[choice - 1] != 'favs':
+                        playlist = Playlist(id=str(library[choice - 1]))
                 else:
                     if choice > len(self.user.playlists):
                         continue
                     playlist = Playlist(id=str(self.user.playlists[choice - 1]))
 
-                self.playlist_dialogue(playlist)
+                if not playlist:
+                    self.fav_songs_dialogue(self.api_serv.get_favourite_songs())
+                else:
+                    self.playlist_dialogue(playlist)
                 break
 
     def playlist_dialogue(self, playlist: Playlist):
@@ -155,9 +162,9 @@ class CLIDialogue:
             if choice == 0:
                 break
             elif choice == 1:
-                pass
-            elif choice == 2:
                 playlist.get_playlist_info()
+            elif choice == 2:
+                playlist.get_playlist_songs_info()
                 while True:
                     try:
                         song_choice = int(input('Select song(by index), go back - 0: '))
@@ -178,16 +185,100 @@ class CLIDialogue:
                 self.playback_dialogue()
                 break
             elif choice == 4:
-                pass
+                new_name = None
+                new_description = None
+                new_public = None
+                while True:
+                    try:
+                        name_choice = int(input('Do you want to change name? 0 - yes, 1 - no'))
+                        if name_choice == 0:
+                            new_name = input('Input new playlist name: ')
+                            break
+                        elif name_choice == 1:
+                            break
+                    except ValueError:
+                        continue
+
+                while True:
+                    try:
+                        description_choice = int(input('Do you want to change description? 0 - yes, 1 - no'))
+                        if description_choice == 0:
+                            new_description = input('Input new playlist description: ')
+                            break
+                        elif description_choice == 1:
+                            break
+                    except ValueError:
+                        continue
+
+                while True:
+                    try:
+                        publicity = self.api_serv.get_playlist_publicity(playlist.id)
+                        public_choice = int(input('Do you want to change playlist publicity? Current publicity: ' +
+                                                  + ('public' if publicity else 'private') + '0 - yes, 1 - no'))
+                        if public_choice == 0:
+                            new_public = not publicity
+                            break
+                        elif public_choice == 1:
+                            break
+                        else:
+                            continue
+                    except ValueError:
+                        continue
+
+                self.api_serv.update_playlist_info(playlist.id, name=new_name, public=new_public,
+                                                   description=new_description)
             elif choice == 5:
-                pass
+                while True:
+                    try:
+                        del_choice = int(input('Are you sure you want to delete playlist? 0 - yes, 1 - no'))
+                        if del_choice == 0:
+                            self.api_serv.delete_playlist(playlist.id)
+                            print('You can restore deleted playlist for 90 days here: ' +
+                                  'https://www.spotify.com/us/account/recover-playlists/')
+                        elif del_choice == 1:
+                            break
+                    except ValueError:
+                        continue
+
+    def fav_songs_dialogue(self, playlist: list):
+        while True:
+            try:
+                choice = int(input('What do you want to do with the playlist?\n1 - show short info, 2 - open songs, '
+                                   '3 - play, go back - 0: '))
+            except ValueError:
+                continue
+
+            if choice == 0:
+                break
+            elif choice == 1:
+                self.api_serv.get_favorites_playlist_info()
+            elif choice == 2:
+                self.api_serv.get_favourite_songs_info()
+                while True:
+                    try:
+                        song_choice = int(input('Select song(by index), go back - 0: '))
+                    except ValueError:
+                        continue
+                    if song_choice == 0:
+                        break
+                    elif song_choice > len(playlist):
+                        print("There is no such song in the playlist! Try again!")
+                        continue
+
+                    self.song_dialogue(playlist[song_choice - 1], playlist)
+                    break
+            elif choice == 3:
+                thread = Thread(target=self.pl.play, args=(playlist[0], playlist),
+                                daemon=True)
+                thread.start()
+                self.playback_dialogue()
 
     def song_dialogue(self, song, playlist):
         song = SongFactory.create_song(song)
         while True:
             try:
                 choice = int(input('What do you want to do with the song?\n1 - show info, 2 - play, ' +
-                                   '3 - add to playlist, 4 - add to favourites, 5 - add to queue, ' +
+                                   '3 - add to playlist, 4 - like, 5 - add to queue, ' +
                                    'go back - 0: '))
             except ValueError:
                 continue
@@ -196,7 +287,6 @@ class CLIDialogue:
                 break
             elif choice == 1:
                 song.get_song_info()
-                break
             elif choice == 2:
                 if playlist:
                     thread = Thread(target=self.pl.play, args=((song.id, song.source), playlist.songs),
@@ -206,7 +296,6 @@ class CLIDialogue:
                                     daemon=True)
                 thread.start()
                 self.playback_dialogue()
-                break
             elif choice == 3:
                 while True:
                     try:
@@ -216,13 +305,14 @@ class CLIDialogue:
                         continue
                     self.api_serv.add_song_to_playlist(self.user.playlists[pl_choice - 1], song.id)
                     break
-                break
             elif choice == 4:
-                self.api_serv.add_song_to_favourites(song.id)
-                break
+                favourites = self.api_serv.get_favourite_songs()
+                if (song.id, song.source) in favourites:
+                    self.api_serv.delete_song_from_favourites(song.id)
+                else:
+                    self.api_serv.add_song_to_favourites(song.id)
             elif choice == 5:
                 self.pl.queue.add((song.id, song.source))
-                break
 
     def playback_dialogue(self):
         while True:
