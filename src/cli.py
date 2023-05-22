@@ -10,9 +10,6 @@ from src.sync.path_settings import PathSettings
 from utils.path_dialogue import *
 
 
-# TO BE DONE: SETTINGS + REFACTORING
-
-
 class CLIDialogue:
     def __init__(self):
         self.api_serv = APIService()
@@ -43,9 +40,6 @@ class CLIDialogue:
             elif nav_choice == 1:
                 self.search_dialogue()
             elif nav_choice == 2:
-                if not self.user:
-                    print("Authorize if you want to access your library :) You can do it in the SETTINGS folder!")
-                    continue
                 self.library_dialogue()
             elif nav_choice == 3:
                 self.settings_dialogue()
@@ -71,8 +65,15 @@ class CLIDialogue:
                 print('You will now be redirected to the browser. ' +
                       'Please ACCEPT PERMISSIONS AND THEN COPY THE LINK YOU WILL GET IN THE BROWSER AND PASTE IT HERE')
                 self.api_serv.auth_agent()
-                code = input('The URL: ')
-                self.api_serv.authentication(code)
+                while True:
+                    code = input('The URL: ')
+                    if code and code[:34] == 'https://google.com/callback/?code=':
+                        self.api_serv.authentication(code)
+                        self.auth_dialogue()
+                        break
+                    else:
+                        print('Wrong URL')
+                        continue
             elif auth_choice == 0:
                 print('If you are not authorized, you will not have access to your library then. You can sign in ' +
                       'in the SETTINGS folder when you need to!')
@@ -81,7 +82,12 @@ class CLIDialogue:
             self.user = User(self.api_serv.get_current_user())
 
     def search_dialogue(self):
-        search_query = input('What do you want to listen? ')
+        while True:
+            search_query = input('What do you want to listen? ')
+            if not search_query:
+                print('Input something!')
+                continue
+            break
         try:
             search_type = int(input('What are you looking for? 1 - track, 2 - album, 3 - playlist: '))
         except ValueError:
@@ -125,15 +131,25 @@ class CLIDialogue:
     def library_dialogue(self):
         while True:
             try:
-                show_choice = int(
-                    input('Choose what you want to open(whole library - 1, only your playlists - 2, local songs - 3), or'
-                          ' create new playlist - 4, ' + ('9 - open player, ' if self.pl.check_if_was_playing() else '') +
-                          'back to navigation - 0: '))
+                prompt = 'Choose what you want to open(whole library - 1, only my playlists - 2, local songs - 3), or' \
+                         ' create new playlist - 4, ' + (
+                             '9 - open player, ' if self.pl.check_if_was_playing() else '') + \
+                         'back to navigation - 0: '
+                if not self.user:
+                    print('You don\'t have full Spotify library access because you are not authorized :( ' +
+                          'If you want full access you can log in in the SETTINGS folder!')
+                    prompt = 'Choose what you want to do: open local songs - 3, ' + \
+                             ('9 - open player, ' if self.pl.check_if_was_playing() else '') + \
+                             'back to navigation - 0: '
+                show_choice = int(input(prompt))
             except ValueError:
                 continue
             if show_choice == 0:
                 break
             elif show_choice == 1:
+                if not self.user:
+                    print("Authorize if you want to access your library :) You can do it in the SETTINGS folder!")
+                    continue
                 self.api_serv.get_user_library_info()
                 library = self.api_serv.get_user_library()
             elif show_choice == 2:
@@ -210,8 +226,8 @@ class CLIDialogue:
     def playlist_dialogue(self, playlist: Playlist):
         while True:
             try:
-                extended_interactions = \
-                    '4 - change info, 5 - delete playlist, ' if api_serv.check_if_self_owned(playlist.id) else ""
+                extended_interactions = '4 - change info, 5 - delete playlist, ' \
+                    if (self.user and api_serv.check_if_self_owned(playlist.id)) else ""
                 choice = int(input('What do you want to do with the playlist?\n1 - show short info, 2 - open songs, '
                                    '3 - play, ' + f'{extended_interactions} ' +
                                    ('9 - open player, ' if self.pl.check_if_was_playing() else '') + 'go back - 0: '))
@@ -349,11 +365,12 @@ class CLIDialogue:
     def song_dialogue(self, song, playlist):
         song = SongFactory.create_song(song)
         while True:
+            prompt = \
+                'What do you want to do with the song?\n1 - show info, 2 - play, ' + \
+                ('3 - add to playlist, 4 - like, ' if type(song) != StorageSong and self.user else '') + \
+                '5 - add to queue, ' + ('9 - open player, ' if self.pl.check_if_was_playing() else '') + 'go back - 0: '
             try:
-                choice = int(input(
-                    'What do you want to do with the song?\n1 - show info, 2 - play, ' +
-                    ('3 - add to playlist, 4 - like, ' if type(song) != StorageSong else '') + '5 - add to queue, ' +
-                    ('9 - open player, ' if self.pl.check_if_was_playing() else '') + 'go back - 0: '))
+                choice = int(input(prompt))
             except ValueError:
                 continue
 
@@ -479,21 +496,54 @@ class CLIDialogue:
                     print("You can't log out because you have not logged in yet :)")
                     continue
                 else:
-                    auth_sync = AuthSynchronization(self.user.id)
-                    auth_sync.delete_token()
-                    self.user = None
+                    try:
+                        exit_choice = int(input('Are you sure you want to log out? 0 - yes, 1 - no: '))
+                        if exit_choice == 0:
+                            auth_sync = AuthSynchronization(self.user.id)
+                            auth_sync.delete_token()
+                            self.user = None
+                            break
+                        elif exit_choice == 1:
+                            continue
+                    except ValueError:
+                        continue
+
             elif nav_choice == 3:
                 path_sync = PathSettings()
                 paths = path_sync.load_paths() or []
 
                 print('Your current chosen folders: ' + ('None' if not paths else ''))
                 if paths:
-                    for item in paths:
-                        print(item)
-                new_path = select_path()
-                if new_path:
-                    paths.append(new_path)
-                    path_sync.save_paths(paths)
+                    for i, item in enumerate(paths):
+                        print(f'{i+1} - {item}')
+                try:
+                    path_choice = int(input('Do you want to add - 1 or delete - 2 source directories? go back - 0: '))
+                    if path_choice == 0:
+                        continue
+                    elif path_choice == 1:
+                        new_path = select_path()
+                        if new_path:
+                            set_paths = set(paths)
+                            set_paths.add(new_path)
+                            paths = list(set_paths)
+                            path_sync.save_paths(paths)
+                    elif path_choice == 2:
+                        while True:
+                            try:
+                                path_del_choice = int(input('Select directory(by index) to delete, go back - 0: '))
+                            except ValueError:
+                                continue
+                            if path_del_choice == 0:
+                                break
+                            elif path_del_choice > len(paths):
+                                print("Try again!")
+                                continue
+                            paths.pop(path_del_choice-1)
+                            path_sync.save_paths(paths)
+                            break
+                except ValueError:
+                    continue
+
             elif nav_choice == 9 and self.pl.check_if_was_playing():
                 self.playback_dialogue()
             else:

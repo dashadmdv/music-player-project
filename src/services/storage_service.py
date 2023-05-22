@@ -19,7 +19,6 @@ class StorageService:
                             cur_path = root + '\\' + str(file)
                             cur_title = StorageService.get_song_title(cur_path)
                             if title == cur_title or title == str(file)[:-4] or str(file)[:-4].count(title):
-                                print(cur_path)
                                 return cur_path
         else:
             return ''
