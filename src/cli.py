@@ -38,18 +38,21 @@ class CLIDialogue:
                     continue
                 self.library_dialogue()
             elif nav_choice == 3:
-                pass
+                self.settings_dialogue()
             elif nav_choice == 9 and self.pl.check_if_was_playing():
                 self.playback_dialogue()
             else:
                 continue
 
-    def auth_dialogue(self):
+    def auth_dialogue(self, simplified=False):
         if not self.api_serv.refresh_token:
             while True:
                 try:
-                    auth_choice = int(
-                        input('Hello! You are not authorized :( Do you want to sign in? yes - 1, no - 0: '))
+                    if not simplified:
+                        auth_choice = int(
+                            input('Hello! You are not authorized :( Do you want to sign in? yes - 1, no - 0: '))
+                    else:
+                        auth_choice = 1
                     break
                 except ValueError:
                     print('Type something correct please!')
@@ -143,7 +146,7 @@ class CLIDialogue:
                     if choice > len(library):
                         continue
                     if library[choice - 1] != 'favs':
-                        playlist = Playlist(id=str(library[choice - 1]))
+                        playlist = Playlist(id=str(library[choice - 1]), album=((choice - 1) > library.index('favs')))
                 else:
                     if choice > len(self.user.playlists):
                         continue
@@ -186,10 +189,13 @@ class CLIDialogue:
                     self.song_dialogue(playlist.songs[song_choice - 1], playlist)
                     break
             elif choice == 3:
-                thread = Thread(target=self.pl.play, args=(playlist.songs[0], playlist.songs),
-                                daemon=True)
-                thread.start()
-                self.playback_dialogue()
+                if not playlist.is_unavailable():
+                    thread = Thread(target=self.pl.play, args=(playlist.songs[0], playlist.songs),
+                                    daemon=True)
+                    thread.start()
+                    self.playback_dialogue()
+                else:
+                    print('It seems like this playlist is unavailable for listening! Sorry :(')
                 break
             elif choice == 4:
                 new_name = None
@@ -197,7 +203,7 @@ class CLIDialogue:
                 new_public = None
                 while True:
                     try:
-                        name_choice = int(input('Do you want to change name? 0 - yes, 1 - no'))
+                        name_choice = int(input('Do you want to change name? 0 - yes, 1 - no: '))
                         if name_choice == 0:
                             new_name = input('Input new playlist name: ')
                             break
@@ -208,7 +214,7 @@ class CLIDialogue:
 
                 while True:
                     try:
-                        description_choice = int(input('Do you want to change description? 0 - yes, 1 - no'))
+                        description_choice = int(input('Do you want to change description? 0 - yes, 1 - no: '))
                         if description_choice == 0:
                             new_description = input('Input new playlist description: ')
                             break
@@ -221,7 +227,7 @@ class CLIDialogue:
                     try:
                         publicity = self.api_serv.get_playlist_publicity(playlist.id)
                         public_choice = int(input('Do you want to change playlist publicity? Current publicity: ' +
-                                                  + ('public' if publicity else 'private') + '0 - yes, 1 - no'))
+                                                  ('public' if publicity else 'private') + '. 0 - yes, 1 - no: '))
                         if public_choice == 0:
                             new_public = not publicity
                             break
@@ -237,7 +243,7 @@ class CLIDialogue:
             elif choice == 5:
                 while True:
                     try:
-                        del_choice = int(input('Are you sure you want to delete playlist? 0 - yes, 1 - no'))
+                        del_choice = int(input('Are you sure you want to delete playlist? 0 - yes, 1 - no: '))
                         if del_choice == 0:
                             self.api_serv.delete_playlist(playlist.id)
                             print('You can restore deleted playlist for 90 days here: ' +
@@ -302,8 +308,11 @@ class CLIDialogue:
                 song.get_song_info()
             elif choice == 2:
                 if playlist:
-                    thread = Thread(target=self.pl.play, args=((song.id, song.source), playlist.songs),
-                                    daemon=True)
+                    if type(playlist) == Playlist and not playlist.is_unavailable():
+                        thread = Thread(target=self.pl.play, args=((song.id, song.source), playlist.songs), daemon=True)
+                    else:
+                        print('It seems like this playlist is unavailable for listening! Sorry :(')
+                        continue
                 else:
                     thread = Thread(target=self.pl.play, args=((song.id, song.source), []),
                                     daemon=True)
@@ -384,3 +393,28 @@ class CLIDialogue:
                 self.pl.stop()
             if choice == 0:
                 break
+
+    def settings_dialogue(self):
+        while True:
+            try:
+                nav_choice = int(
+                    input('Choose option(1 - search, 2 - my library, 3 - settings), ' +
+                          ('9 - open player, ' if self.pl.check_if_was_playing() else '') + '0 - go back: '))
+            except ValueError:
+                continue
+            if nav_choice == 0:
+                print('Goodbye then!')
+                break
+            elif nav_choice == 1:
+                self.search_dialogue()
+            elif nav_choice == 2:
+                if not self.user:
+                    print("Authorize if you want to access your library :) You can do it in the SETTINGS folder!")
+                    continue
+                self.library_dialogue()
+            elif nav_choice == 3:
+                self.settings_dialogue()
+            elif nav_choice == 9 and self.pl.check_if_was_playing():
+                self.playback_dialogue()
+            else:
+                continue

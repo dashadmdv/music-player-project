@@ -18,6 +18,12 @@ class Playlist:
             self.songs = api_serv.get_album_songs(self.id, self.size)
             self.duration = api_serv.get_album_duration(self.id, self.size)
 
+    def is_unavailable(self):
+        available = False
+        for item in self.songs:
+            available = available or bool(item[1])
+        return not available
+
     def add_song(self, song_id: str, position: int = 0):
         return api_serv.add_song_to_playlist(self.id, song_id, position)
 
