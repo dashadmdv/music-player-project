@@ -1,0 +1,1 @@
+Do NOT delete files in this folder manually. It will LOG YOU OUT of the app!

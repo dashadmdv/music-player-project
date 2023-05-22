@@ -1,0 +1,1 @@
+This folder stores some synchronization info. It helps to remember the user and their settings! DO NOT delete anything in here!

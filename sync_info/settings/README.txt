@@ -1,0 +1,1 @@
+Do NOT delete files in this folder manually. It will AFFECT your app settings!
