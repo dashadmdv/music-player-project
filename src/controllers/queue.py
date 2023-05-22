@@ -47,7 +47,11 @@ class Queue(object):
         song_queue_count = self.previous_songs.count(self.cur_song) + self.first_order_ids.count(self.cur_song) + \
                            self.song_ids.count(self.cur_song) + 1
         song_playlist_count = self.whole_playlist.count(self.cur_song)
-        if self.previous_songs and song == self.previous_songs[-1]:
+        if self.first_order_ids and song == self.first_order_ids[0]:
+            if not (song_queue_count > song_playlist_count):
+                self.previous_songs.append(self.cur_song)
+            self.cur_song = self.first_order_ids.pop(0)
+        elif self.previous_songs and song == self.previous_songs[-1]:
             if not (song_queue_count > song_playlist_count):
                 self.song_ids.insert(0, self.cur_song)
             self.cur_song = self.previous_songs.pop()
@@ -56,10 +60,6 @@ class Queue(object):
                 if not (song_queue_count > song_playlist_count):
                     self.previous_songs.append(self.cur_song)
             self.cur_song = self.song_ids.pop(0)
-        elif self.first_order_ids and song == self.first_order_ids[0]:
-            if not (song_queue_count > song_playlist_count):
-                self.previous_songs.append(self.cur_song)
-            self.cur_song = self.first_order_ids.pop(0)
         elif song is self.cur_song:
             pass
         else:
@@ -83,6 +83,12 @@ class Queue(object):
         if not self.first_order_ids:
             if self.is_empty():
                 if self.previous_songs:
+                    song_queue_count = self.previous_songs.count(self.cur_song) + self.first_order_ids.count(
+                        self.cur_song) + \
+                                       self.song_ids.count(self.cur_song) + 1
+                    song_playlist_count = self.whole_playlist.count(self.cur_song)
+                    if not (song_queue_count > song_playlist_count):
+                        self.previous_songs.append(self.cur_song)
                     self.song_ids = self.previous_songs.copy()
                     self.previous_songs.clear()
                 else:
