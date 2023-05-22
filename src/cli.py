@@ -226,10 +226,17 @@ class CLIDialogue:
     def playlist_dialogue(self, playlist: Playlist):
         while True:
             try:
-                extended_interactions = '4 - change info, 5 - delete playlist, ' \
-                    if (self.user and api_serv.check_if_self_owned(playlist.id)) else ""
+                owned = playlist.check_if_self_owned()
+                followed = self.api_serv.check_if_followed(playlist.id, playlist.album)
+                if (not followed) and (not owned):
+                    following = '6 - add to the library, '
+                elif followed and not owned:
+                    following = '6 - delete from the library, '
+                else:
+                    following = ''
+                extended_interactions = '4 - change info, 5 - delete playlist, ' if (self.user and owned) else ""
                 choice = int(input('What do you want to do with the playlist?\n1 - show short info, 2 - open songs, '
-                                   '3 - play, ' + f'{extended_interactions} ' +
+                                   '3 - play, ' + f'{extended_interactions} ' + (following if self.user else '') +
                                    ('9 - open player, ' if self.pl.check_if_was_playing() else '') + 'go back - 0: '))
             except ValueError:
                 continue
@@ -264,7 +271,6 @@ class CLIDialogue:
                     self.playback_dialogue()
                 else:
                     print('It seems like this playlist is unavailable for listening! Sorry :(')
-                break
             elif choice == 4:
                 new_name = None
                 new_description = None
@@ -323,6 +329,11 @@ class CLIDialogue:
                     except ValueError:
                         continue
                 break
+            elif choice == 6:
+                if not followed and not owned:
+                    playlist.follow()
+                elif followed and not owned:
+                    playlist.unfollow()
             elif choice == 9 and self.pl.check_if_was_playing():
                 self.playback_dialogue()
 
@@ -502,6 +513,7 @@ class CLIDialogue:
                             auth_sync = AuthSynchronization(self.user.id)
                             auth_sync.delete_token()
                             self.user = None
+                            self.api_serv.__init__()
                             break
                         elif exit_choice == 1:
                             continue

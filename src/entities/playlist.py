@@ -24,11 +24,29 @@ class Playlist:
             available = available or bool(item[1])
         return not available
 
+    def check_if_self_owned(self):
+        return api_serv.check_if_self_owned(self.id)
+
+    def check_if_followed(self):
+        return api_serv.check_if_followed(self.id, self.album)
+
     def add_song(self, song_id: str, position: int = 0):
         return api_serv.add_song_to_playlist(self.id, song_id, position)
 
     def delete_song(self, song_id: str):
         return api_serv.delete_song_from_playlist(self.id, song_id)
+
+    def follow(self):
+        if not self.album:
+            api_serv.follow_playlist(self.id)
+        else:
+            api_serv.follow_album(self.id)
+
+    def unfollow(self):
+        if not self.album:
+            api_serv.unfollow_playlist(self.id)
+        else:
+            api_serv.unfollow_album(self.id)
 
     def get_playlist_info(self):
         if not self.album:
