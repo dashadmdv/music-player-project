@@ -119,6 +119,12 @@ class APIService:
         for i, playlist in enumerate(playlists['items']):
             playlists_ids.append(playlist['id'])
         playlists_ids.append('favs')
+
+        response = get(f'{self.base_uri}/me/albums?limit=50', headers=self.headers)
+        albums = response.json()
+        for i, album in enumerate(albums['items']):
+            playlists_ids.append(album['album']['id'])
+
         return playlists_ids
 
     def get_user_library_info(self):
@@ -130,6 +136,11 @@ class APIService:
         favs = self.get_favourite_songs()
         print(f'{len(playlists["items"]) + 1} - Favourite tracks')
         print(f'Number of tracks: {len(favs)}')
+        response = get(f'{self.base_uri}/me/albums?limit=50', headers=self.headers)
+        albums = response.json()
+        for i, album in enumerate(albums['items']):
+            print(f'{len(playlists["items"]) + 1 + i + 1} - {album["album"]["name"]}')
+            print(f'Number of tracks: {album["album"]["total_tracks"]}')
 
     def get_favourite_songs(self):
         stor_serv = StorageService()
@@ -160,7 +171,6 @@ class APIService:
                 song = song["track"]
                 print(
                     f'{j + 1} - {song["name"]} - {song["artists"][0]["name"]}')
-                print(f'Url: {song["external_urls"]}')
                 seconds = str(song["duration_ms"] // 1000 % 60 + 100)
                 print(
                     f'Duration: {song["duration_ms"] // 1000 // 60}:{seconds[1:]}')
@@ -259,7 +269,9 @@ class APIService:
         print(f'Name: {playlist["name"]}')
         print(f'Description: {playlist["description"]}')
         print(f'Number of tracks: {playlist["tracks"]["total"]}')
-        print(f'Cover: {playlist["images"][0]["url"]}')
+        if self.check_if_self_owned(pl_id):
+            print(f'Publicity: ' + ('public' if self.get_playlist_publicity(pl_id) else 'private'))
+        print(f'Cover: {playlist["images"][0]["url"] if playlist["images"] else ""}')
         duration = self.get_playlist_duration(playlist['id'])
         minutes = str(duration // 1000 // 60 % 60 + 100)
         print(
@@ -394,13 +406,17 @@ class APIService:
     def get_song(self, song_id: str):
         response = get(f'{self.base_uri}/tracks/{song_id}', headers=self.headers)
         song = response.json()
-        artists = []
-        for i, artist in enumerate(song['artists']):
-            artists.append(artist['name'])
-        artists = ', '.join(artists)
-        return dict(title=song['name'], album_id=song['album']['id'], artist=artists,
-                    duration=song['duration_ms'], cover=song['album']['images'][0]['url'],
-                    date=song['album']['release_date'], source=song['preview_url'])
+        try:
+            if song['error']:
+                return dict(is_local=True)
+        except KeyError:
+            artists = []
+            for i, artist in enumerate(song['artists']):
+                artists.append(artist['name'])
+            artists = ', '.join(artists)
+            return dict(title=song['name'], album_id=song['album']['id'], artist=artists,
+                        duration=song['duration_ms'], cover=song['album']['images'][0]['url'],
+                        date=song['album']['release_date'], source=song['preview_url'], is_local=song['is_local'])
 
     def get_song_url(self, song_id: str):
         response = get(f'{self.base_uri}/tracks/{song_id}', headers=self.headers)
