@@ -95,6 +95,11 @@ class Playback(object):
             return True
         return False
 
+    def check_if_was_playing(self):
+        return self.player.get_state() == vlc.State.Paused \
+                or self.player.get_state() == vlc.State.Playing \
+                or self.player.get_state() == vlc.State.Opening
+
     def change_repeat_mode(self, mode: int):
         if mode not in [0, 1, 2]:
             pass

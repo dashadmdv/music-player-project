@@ -23,7 +23,8 @@ class CLIDialogue:
         while True:
             try:
                 nav_choice = int(
-                    input('Choose a folder to open(1 - search, 2 - my library, 3 - settings), 0 - exit the app: '))
+                    input('Choose a folder to open(1 - search, 2 - my library, 3 - settings), ' +
+                          ('9 - open player, ' if self.pl.check_if_was_playing() else '') + '0 - exit the app: '))
             except ValueError:
                 continue
             if nav_choice == 0:
@@ -38,6 +39,8 @@ class CLIDialogue:
                 self.library_dialogue()
             elif nav_choice == 3:
                 pass
+            elif nav_choice == 9 and self.pl.check_if_was_playing():
+                self.playback_dialogue()
             else:
                 continue
 
@@ -111,7 +114,7 @@ class CLIDialogue:
             try:
                 show_choice = int(
                     input('Choose what you want to open(whole library - 1, only your playlists - 2), ' +
-                          'back to navigation - 0: '))
+                          ('9 - open player, ' if self.pl.check_if_was_playing() else '') + 'back to navigation - 0: '))
             except ValueError:
                 continue
             if show_choice == 0:
@@ -121,6 +124,9 @@ class CLIDialogue:
                 library = self.api_serv.get_user_library()
             elif show_choice == 2:
                 self.user.get_user_playlists_info()
+            elif show_choice == 9 and self.pl.check_if_was_playing():
+                self.playback_dialogue()
+                continue
             else:
                 continue
 
@@ -155,7 +161,8 @@ class CLIDialogue:
                 extended_interactions = \
                     '4 - change info, 5 - delete playlist, ' if api_serv.check_if_self_owned(playlist.id) else ""
                 choice = int(input('What do you want to do with the playlist?\n1 - show short info, 2 - open songs, '
-                                   '3 - play, ' + f'{extended_interactions}go back - 0: '))
+                                   '3 - play, ' + f'{extended_interactions} ' +
+                                   ('9 - open player, ' if self.pl.check_if_was_playing() else '') + 'go back - 0: '))
             except ValueError:
                 continue
 
@@ -240,11 +247,15 @@ class CLIDialogue:
                     except ValueError:
                         continue
 
+            elif choice == 9 and self.pl.check_if_was_playing():
+                self.playback_dialogue()
+
     def fav_songs_dialogue(self, playlist: list):
         while True:
             try:
                 choice = int(input('What do you want to do with the playlist?\n1 - show short info, 2 - open songs, '
-                                   '3 - play, go back - 0: '))
+                                   '3 - play, ' + ('9 - open player, ' if self.pl.check_if_was_playing() else '') +
+                                   'go back - 0: '))
             except ValueError:
                 continue
 
@@ -272,6 +283,8 @@ class CLIDialogue:
                                 daemon=True)
                 thread.start()
                 self.playback_dialogue()
+            elif choice == 9 and self.pl.check_if_was_playing():
+                self.playback_dialogue()
 
     def song_dialogue(self, song, playlist):
         song = SongFactory.create_song(song)
@@ -279,7 +292,7 @@ class CLIDialogue:
             try:
                 choice = int(input('What do you want to do with the song?\n1 - show info, 2 - play, ' +
                                    '3 - add to playlist, 4 - like, 5 - add to queue, ' +
-                                   'go back - 0: '))
+                                   ('9 - open player, ' if self.pl.check_if_was_playing() else '') + 'go back - 0: '))
             except ValueError:
                 continue
 
@@ -306,13 +319,18 @@ class CLIDialogue:
                     self.api_serv.add_song_to_playlist(self.user.playlists[pl_choice - 1], song.id)
                     break
             elif choice == 4:
-                favourites = self.api_serv.get_favourite_songs()
-                if (song.id, song.source) in favourites:
-                    self.api_serv.delete_song_from_favourites(song.id)
+                if type(song) == StorageSong:
+                    print('Cannot like local tracks! Sorry :(')
                 else:
-                    self.api_serv.add_song_to_favourites(song.id)
+                    favourites = self.api_serv.get_favourite_songs()
+                    if (song.id, song.source) in favourites:
+                        self.api_serv.delete_song_from_favourites(song.id)
+                    else:
+                        self.api_serv.add_song_to_favourites(song.id)
             elif choice == 5:
                 self.pl.queue.add((song.id, song.source))
+            elif choice == 9 and self.pl.check_if_was_playing():
+                self.playback_dialogue()
 
     def playback_dialogue(self):
         while True:
