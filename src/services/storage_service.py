@@ -1,6 +1,6 @@
 import eyed3
 import os
-from src.sync.path_settings import PathSettings
+from dashadmdv_music_player_sync.path_settings import PathSettings
 
 eyed3.log.setLevel("ERROR")
 

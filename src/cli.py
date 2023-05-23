@@ -1,3 +1,4 @@
+from dashadmdv_music_player_sync.auth_sync import AuthSynchronization
 from entities.user import *
 from entities.playlist import *
 from services.api_service import *
@@ -5,8 +6,7 @@ from services.storage_service import *
 from controllers.playback import *
 from utils.song_factory import *
 from threading import Thread
-from src.sync.auth_sync import AuthSynchronization
-from src.sync.path_settings import PathSettings
+from dashadmdv_music_player_sync.path_settings import PathSettings
 from utils.path_dialogue import *
 
 

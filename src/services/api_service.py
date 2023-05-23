@@ -3,7 +3,7 @@ from math import ceil
 from webbrowser import open_new_tab
 from src.services.storage_service import StorageService
 from json import dumps
-from src.sync.auth_sync import AuthSynchronization
+from dashadmdv_music_player_sync.auth_sync import AuthSynchronization
 from src.utils.check_connection import connect
 
 
