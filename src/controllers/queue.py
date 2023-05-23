@@ -73,6 +73,9 @@ class Queue(object):
         self.song_ids.clear()
         self.previous_songs.clear()
 
+    def full_clear(self):
+        self.__init__()
+
     def previous(self):
         if not self.previous_songs:
             return self.cur_song

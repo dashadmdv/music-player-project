@@ -55,6 +55,7 @@ class Playback(object):
     def stop(self):
         self.paused = True
         self.player.stop()
+        self.queue.full_clear()
 
     def previous(self):
         prev = self.queue.previous()
