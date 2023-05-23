@@ -78,7 +78,8 @@ class CLIDialogue:
                 print('If you are not authorized, you will not have access to your library then. You can sign in ' +
                       'in the SETTINGS folder when you need to!')
         else:
-            print(f'Hello, {self.api_serv.get_user_name(self.api_serv.get_current_user())}!')
+            name = self.api_serv.get_user_name(self.api_serv.get_current_user())
+            print(f'Hello, {name if name else "our offline friend :)"}!')
             self.user = User(self.api_serv.get_current_user())
 
     def search_dialogue(self):
@@ -99,6 +100,10 @@ class CLIDialogue:
         elif search_type == 3:
             search_type = 'playlist'
         search_items = self.api_serv.search(search_query, search_type)
+
+        if not search_items:
+            print('Something went wrong :(')
+            return
 
         if search_type == 'track':
             while True:
@@ -153,6 +158,9 @@ class CLIDialogue:
                 self.api_serv.get_user_library_info()
                 library = self.api_serv.get_user_library()
             elif show_choice == 2:
+                if not self.user:
+                    print("Authorize if you want to access your library :) You can do it in the SETTINGS folder!")
+                    continue
                 self.user.get_user_playlists_info()
             elif show_choice == 3:
                 playlist = self.stor_serv.get_songs()
@@ -196,6 +204,11 @@ class CLIDialogue:
                 self.playback_dialogue()
                 continue
             else:
+                continue
+
+            if show_choice == 1 and not library:
+                continue
+            elif show_choice == 2 and not self.user.playlists:
                 continue
 
             while True:
@@ -375,6 +388,9 @@ class CLIDialogue:
 
     def song_dialogue(self, song, playlist):
         song = SongFactory.create_song(song)
+        if not song:
+            print('Something went wrong :(')
+            return
         while True:
             prompt = \
                 'What do you want to do with the song?\n1 - show info, 2 - play, ' + \
@@ -464,8 +480,11 @@ class CLIDialogue:
                         continue
             if choice == 5:
                 song = SongFactory.create_song(self.pl.queue.cur_song)
-                artist = song.artist
-                print('Track: ', song.title + (f' - {artist}' if artist else ''))
+                if not song:
+                    print('Something went wrong :(')
+                else:
+                    artist = song.artist
+                    print('Track: ', song.title + (f' - {artist}' if artist else ''))
                 seconds = str(self.pl.player.get_time() // 1000 % 60 + 100)
                 print(f'Time: {self.pl.player.get_time() // 1000 // 60}:{seconds[1:]}')
                 print('Player state: ', self.pl.player.get_state())
@@ -483,6 +502,7 @@ class CLIDialogue:
                 self.pl.shuffle()
             if choice == 8:
                 self.pl.stop()
+                break
             if choice == 0:
                 break
 
@@ -512,6 +532,7 @@ class CLIDialogue:
                         if exit_choice == 0:
                             auth_sync = AuthSynchronization(self.user.id)
                             auth_sync.delete_token()
+                            self.pl.stop()
                             self.user = None
                             self.api_serv.__init__()
                             break
