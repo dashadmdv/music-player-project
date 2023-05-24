@@ -8,6 +8,8 @@ from utils.song_factory import *
 from threading import Thread
 from dashadmdv_music_player_sync.path_settings import PathSettings
 from utils.path_dialogue import *
+from utils.check_connection import connect
+from storage.database_controller import *
 
 
 class CLIDialogue:
@@ -81,6 +83,9 @@ class CLIDialogue:
             name = self.api_serv.get_user_name(self.api_serv.get_current_user())
             print(f'Hello, {name if name else "our offline friend :)"}!')
             self.user = User(self.api_serv.get_current_user())
+            if connect():
+                lib_sync_thread = Thread(target=save_library, daemon=True)
+                lib_sync_thread.start()
 
     def search_dialogue(self):
         while True:
@@ -146,6 +151,11 @@ class CLIDialogue:
                     prompt = 'Choose what you want to do: open local songs - 3, ' + \
                              ('9 - open player, ' if self.pl.check_if_was_playing() else '') + \
                              'back to navigation - 0: '
+                if check_if_library_exists() and not connect():
+                    print('Seems you are offline :(')
+                    prompt = 'Choose what you want to open(whole library - 1, local songs - 3), ' + \
+                             ('9 - open player, ' if self.pl.check_if_was_playing() else '') + \
+                             'back to navigation - 0: '
                 show_choice = int(input(prompt))
             except ValueError:
                 continue
@@ -155,6 +165,8 @@ class CLIDialogue:
                 if not self.user:
                     print("Authorize if you want to access your library :) You can do it in the SETTINGS folder!")
                     continue
+                if self.user and not connect():
+                    self.offline_lib_dialogue()
                 self.api_serv.get_user_library_info()
                 library = self.api_serv.get_user_library()
             elif show_choice == 2:
@@ -234,6 +246,30 @@ class CLIDialogue:
                     self.fav_songs_dialogue(self.api_serv.get_favourite_songs())
                 else:
                     self.playlist_dialogue(playlist)
+                break
+
+
+    def offline_lib_dialogue(self):
+        library = load_library()
+        print(library)
+        for i, playlist in enumerate(library):
+            print(f'{i+1} - {playlist["name"]}')
+            print(f'Total tracks: {playlist["size"]}')
+        while True:
+            try:
+                choice = int(input('Select playlist(by index) to see info about, go back - 0: '))
+            except ValueError:
+                continue
+
+            if choice == 0:
+                break
+            elif choice > len(library):
+                print('No such playlist!')
+            else:
+                playlist = library[choice - 1]
+                for i, song in enumerate(playlist['songs']):
+                    print(f'{i + 1} - {song["name"]}')
+                    print(f'Duration: {song["duration"]}')
                 break
 
     def playlist_dialogue(self, playlist: Playlist):
@@ -535,6 +571,7 @@ class CLIDialogue:
                             self.pl.stop()
                             self.user = None
                             self.api_serv.__init__()
+                            delete_library()
                             break
                         elif exit_choice == 1:
                             continue

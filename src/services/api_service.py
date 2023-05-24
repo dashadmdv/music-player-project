@@ -163,22 +163,36 @@ class APIService:
         else:
             return []
 
-    def get_user_library_info(self):
+    def get_user_library_info(self, storing: bool = False):
         if connect():
             self.refresh_user_token()
             response = get(f'{self.base_uri}/me/playlists?limit=50', headers=self.headers)
             playlists = response.json()
+            if storing:
+                full_library = []
             for i, playlist in enumerate(playlists['items']):
-                print(f'{i + 1} - {playlist["name"]}')
-                print(f'Number of tracks: {playlist["tracks"]["total"]}')
+                if not storing:
+                    print(f'{i + 1} - {playlist["name"]}')
+                    print(f'Number of tracks: {playlist["tracks"]["total"]}')
+                else:
+                    full_library.append(dict(id=playlist['id'], name=playlist["name"], size=playlist["tracks"]["total"]))
             favs = self.get_favourite_songs()
-            print(f'{len(playlists["items"]) + 1} - Favourite tracks')
-            print(f'Number of tracks: {len(favs)}')
+            if not storing:
+                print(f'{len(playlists["items"]) + 1} - Favourite tracks')
+                print(f'Number of tracks: {len(favs)}')
+            else:
+                full_library.append(dict(id='fav', name='Favourite tracks', size=len(favs)))
             response = get(f'{self.base_uri}/me/albums?limit=50', headers=self.headers)
             albums = response.json()
             for i, album in enumerate(albums['items']):
-                print(f'{len(playlists["items"]) + 1 + i + 1} - {album["album"]["name"]}')
-                print(f'Number of tracks: {album["album"]["total_tracks"]}')
+                album = album["album"]
+                if not storing:
+                    print(f'{len(playlists["items"]) + 1 + i + 1} - {album["name"]}')
+                    print(f'Number of tracks: {album["total_tracks"]}')
+                else:
+                    full_library.append(dict(id=album['id'], name=album["name"], size=album["total_tracks"]))
+            if storing:
+                return full_library
 
     def get_favourite_songs(self):
         if connect():
@@ -203,25 +217,34 @@ class APIService:
         else:
             return []
 
-    def get_favourite_songs_info(self):
+    def get_favourite_songs_info(self, storing: bool = False):
         if connect():
             self.refresh_user_token()
             request_url = f'{self.base_uri}/me/tracks'
+            if storing:
+                full_favs = []
             while True:
                 response = get(request_url, headers=self.headers)
                 songs = response.json()
                 j = 0
                 for i, song in enumerate(songs['items']):
                     song = song["track"]
-                    print(
-                        f'{j + 1} - {song["name"]} - {song["artists"][0]["name"]}')
-                    seconds = str(song["duration_ms"] // 1000 % 60 + 100)
-                    print(
-                        f'Duration: {song["duration_ms"] // 1000 // 60}:{seconds[1:]}')
+                    if not storing:
+                        print(
+                            f'{j + 1} - {song["name"]} - {song["artists"][0]["name"]}')
+                        seconds = str(song["duration_ms"] // 1000 % 60 + 100)
+                        print(
+                            f'Duration: {song["duration_ms"] // 1000 // 60}:{seconds[1:]}')
+                    else:
+                        seconds = str(song["duration_ms"] // 1000 % 60 + 100)
+                        full_favs.append(dict(name=f'{song["name"]} - {song["artists"][0]["name"]}',
+                                              duration=f'{song["duration_ms"] // 1000 // 60}:{seconds[1:]}'))
                     j = j + 1
                 request_url = songs['next']
                 if not request_url:
                     break
+        if storing:
+            return full_favs
 
     def create_playlist(self, user_id: str, name: str, public: bool = True, description: str = ''):
         if connect():
@@ -470,25 +493,38 @@ class APIService:
         else:
             return []
 
-    def get_playlist_songs_info(self, pl_id: str, length: int = None):
+    def get_playlist_songs_info(self, pl_id: str, length: int = None, storing: bool = False):
         if connect():
             if not self.refresh_token:
                 self.refresh_user_token()
+            if storing:
+                full_playlist = []
             if not length:
                 length = self.get_playlist_size(pl_id)
             if length == 0:
-                print('Playlist is empty!')
+                if not storing:
+                    print('Playlist is empty!')
             else:
                 for j in range(ceil(length / 100)):
                     response = get(f'{self.base_uri}/playlists/{pl_id}/tracks?offset={j * 100}', headers=self.headers)
                     songs = response.json()
                     for i, song in enumerate(songs['items']):
                         song = song["track"]
-                        print(
-                            f'{i + 1 + j * 100} - {song["name"]} - {song["artists"][0]["name"]}')
-                        seconds = str(song["duration_ms"] // 1000 % 60 + 100)
-                        print(
-                            f'Duration: {song["duration_ms"] // 1000 // 60}:{seconds[1:]}')
+                        try:
+                            if not storing:
+                                print(
+                                    f'{i + 1 + j * 100} - {song["name"]} - {song["artists"][0]["name"]}')
+                                seconds = str(song["duration_ms"] // 1000 % 60 + 100)
+                                print(
+                                    f'Duration: {song["duration_ms"] // 1000 // 60}:{seconds[1:]}')
+                            else:
+                                seconds = str(song["duration_ms"] // 1000 % 60 + 100)
+                                full_playlist.append(dict(name=f'{song["name"]} - {song["artists"][0]["name"]}',
+                                                          duration=f'{song["duration_ms"] // 1000 // 60}:{seconds[1:]}'))
+                        except TypeError:
+                            pass
+            if storing:
+                return full_playlist
 
     def get_album_songs(self, album_id: str, length: int = None):
         if connect():
@@ -508,11 +544,13 @@ class APIService:
         else:
             return []
 
-    def get_album_songs_info(self, album_id: str, length: int = None):
+    def get_album_songs_info(self, album_id: str, length: int = None, storing: bool = False):
         if connect():
             if not self.refresh_token:
                 self.refresh_user_token()
             songs_ids = []
+            if storing:
+                full_album = []
             if not length:
                 length = self.get_album_size(album_id)
             else:
@@ -521,13 +559,21 @@ class APIService:
                                    headers=self.headers)
                     songs = response.json()
                     for i, song in enumerate(songs['items']):
-                        print(
-                            f'{i + 1 + j * 50} - {song["name"]} - {song["artists"][0]["name"]}')
-                        seconds = str(song["duration_ms"] // 1000 % 60 + 100)
-                        print(
-                            f'Duration: {song["duration_ms"] // 1000 // 60}:{seconds[1:]}')
-                        songs_ids.append((song['id'], song['preview_url']))
-            return songs_ids
+                        if not storing:
+                            print(
+                                f'{i + 1 + j * 50} - {song["name"]} - {song["artists"][0]["name"]}')
+                            seconds = str(song["duration_ms"] // 1000 % 60 + 100)
+                            print(
+                                f'Duration: {song["duration_ms"] // 1000 // 60}:{seconds[1:]}')
+                            songs_ids.append((song['id'], song['preview_url']))
+                        else:
+                            seconds = str(song["duration_ms"] // 1000 % 60 + 100)
+                            full_album.append(dict(name=f'{song["name"]} - {song["artists"][0]["name"]}',
+                                                   duration=f'{song["duration_ms"] // 1000 // 60}:{seconds[1:]}'))
+            if not storing:
+                return songs_ids
+            else:
+                return full_album
         else:
             return []
 

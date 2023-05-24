@@ -9,7 +9,7 @@ class Playback(object):
         self.player = vlc.MediaPlayer()
         self.queue = Queue()
         self.paused = False
-        self.repeat_mode = 2  # 0 - no repeat, 1 - track repeat, 2 - playlist repeat
+        self.repeat_mode = 0  # 0 - no repeat, 1 - track repeat, 2 - playlist repeat
 
     def __new__(cls):
         if not hasattr(cls, 'instance'):
