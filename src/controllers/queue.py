@@ -13,12 +13,12 @@ class Queue(object):
         self.first_order_ids = []
         self.song_ids = []
         self.whole_playlist = []
-        self.cur_song = ''
-        self.cur_playlist = ''
+        self.cur_song = ""
+        self.cur_playlist = ""
         self.shuffle_mode = False
 
     def __new__(cls):
-        if not hasattr(cls, 'instance'):
+        if not hasattr(cls, "instance"):
             cls.instance = super(Queue, cls).__new__(cls)
         return cls.instance
 
@@ -30,7 +30,7 @@ class Queue(object):
     def add(self, song: tuple, playlist: list):
         if playlist:
             start_index = playlist.index(song)
-            songs_to_add = (playlist[start_index + 1:])
+            songs_to_add = playlist[start_index + 1:]
             self.song_ids.extend(songs_to_add)
             self.previous_songs.extend((playlist[:start_index]))
         self.cur_song = song
@@ -44,8 +44,12 @@ class Queue(object):
         self.add(song, playlist)
 
     def update(self, song: tuple, last_song: bool = False):
-        song_queue_count = self.previous_songs.count(self.cur_song) + self.first_order_ids.count(self.cur_song) + \
-                           self.song_ids.count(self.cur_song) + 1
+        song_queue_count = (
+            self.previous_songs.count(self.cur_song)
+            + self.first_order_ids.count(self.cur_song)
+            + self.song_ids.count(self.cur_song)
+            + 1
+        )
         song_playlist_count = self.whole_playlist.count(self.cur_song)
         if self.first_order_ids and song == self.first_order_ids[0]:
             if not (song_queue_count > song_playlist_count):
@@ -86,9 +90,12 @@ class Queue(object):
         if not self.first_order_ids:
             if self.is_empty():
                 if self.previous_songs:
-                    song_queue_count = self.previous_songs.count(self.cur_song) + self.first_order_ids.count(
-                        self.cur_song) + \
-                                       self.song_ids.count(self.cur_song) + 1
+                    song_queue_count = (
+                        self.previous_songs.count(self.cur_song)
+                        + self.first_order_ids.count(self.cur_song)
+                        + self.song_ids.count(self.cur_song)
+                        + 1
+                    )
                     song_playlist_count = self.whole_playlist.count(self.cur_song)
                     if not (song_queue_count > song_playlist_count):
                         self.previous_songs.append(self.cur_song)

@@ -12,7 +12,7 @@ class Playback(object):
         self.repeat_mode = 0  # 0 - no repeat, 1 - track repeat, 2 - playlist repeat
 
     def __new__(cls):
-        if not hasattr(cls, 'instance'):
+        if not hasattr(cls, "instance"):
             cls.instance = super(Playback, cls).__new__(cls)
         return cls.instance
 
@@ -46,7 +46,7 @@ class Playback(object):
         if ended and self.repeat_mode == 0 or self.repeat_mode == 2:
             self.next()
         elif ended and self.repeat_mode == 1:
-            self.start_play(self.queue.cur_song[1])
+            self.start_play(self.queue.cur_song[1], no_repeat)
 
     def pause(self):
         self.paused = not self.paused
@@ -68,23 +68,26 @@ class Playback(object):
     def next(self):
         last_song = self.queue.is_empty()
         next = self.queue.next()
-        self.queue.update(next, last_song)
-        if not next[1]:
-            self.next()
-        elif last_song and self.repeat_mode == 0:
+        while not next[1]:
+            buffer_last_song = self.queue.is_empty()
+            self.queue.update(next, buffer_last_song)
+            next = self.queue.next()
+        buffer_last_song = self.queue.is_empty()
+        self.queue.update(next, buffer_last_song)
+        if last_song and self.repeat_mode == 0:
             self.start_play(next[1], True)
         else:
             if self.repeat_mode == 1:
                 self.change_repeat_mode(2)
             self.start_play(next[1])
 
-    def set_time(self, seconds: int, operator: str = '='):
+    def set_time(self, seconds: int, operator: str = "="):
         cur_time = self.player.get_time()
-        if operator == '+':
+        if operator == "+":
             self.player.set_time(cur_time + seconds * 1000)
-        elif operator == '-':
+        elif operator == "-":
             self.player.set_time(cur_time - seconds * 1000)
-        elif operator == '=':
+        elif operator == "=":
             self.player.set_time(seconds * 1000)
 
     def check_if_ended(self, player: vlc.MediaPlayer):
@@ -97,9 +100,11 @@ class Playback(object):
         return False
 
     def check_if_was_playing(self):
-        return self.player.get_state() == vlc.State.Paused \
-                or self.player.get_state() == vlc.State.Playing \
-                or self.player.get_state() == vlc.State.Opening
+        return (
+            self.player.get_state() == vlc.State.Paused
+            or self.player.get_state() == vlc.State.Playing
+            or self.player.get_state() == vlc.State.Opening
+        )
 
     def change_repeat_mode(self, mode: int):
         if mode not in [0, 1, 2]:

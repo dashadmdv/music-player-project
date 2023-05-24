@@ -11,12 +11,15 @@ class SongFactory:
         if type(song_template) is str:
             song_template = (song_template, api_serv.get_song_url(song_template))
         if type(song_template) is tuple:
-            if song_template[1] and song_template[1][:8] == 'https://':
+            if song_template[1] and song_template[1][:8] == "https://":
                 if connect():
                     return APISong(song_template[0])
                 else:
                     return None
-            elif not song_template[1] and not (api_serv.get_song(song_template[0]))['is_local']:
+            elif (
+                not song_template[1]
+                and not (api_serv.get_song(song_template[0]))["is_local"]
+            ):
                 if connect():
                     return APISong(song_template[0])
                 else:
