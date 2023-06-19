@@ -349,6 +349,7 @@ class CLIDialogue:
                         "3 - play, "
                         + f"{extended_interactions} "
                         + (following if self.user else "")
+                        + ("7 - merge with another playlist, " if self.user else "")
                         + (
                             "9 - open player, "
                             if self.pl.check_if_was_playing()
@@ -479,6 +480,21 @@ class CLIDialogue:
                     playlist.follow()
                 elif followed and not owned:
                     playlist.unfollow()
+            elif choice == 7:
+                while True:
+                    try:
+                        self.user.get_user_playlists_info()
+                        pl_choice = int(
+                            input(
+                                "Select playlist to merge to(by index), go back - 0: "
+                            )
+                        )
+                    except ValueError:
+                        continue
+                    if pl_choice == 0:
+                        break
+                    self.api_serv.add_playlist_to_playlist(playlist.songs, self.user.playlists[pl_choice-1])
+                    break
             elif choice == 9 and self.pl.check_if_was_playing():
                 self.playback_dialogue()
 

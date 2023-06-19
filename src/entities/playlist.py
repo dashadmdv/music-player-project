@@ -59,3 +59,6 @@ class Playlist:
             return api_serv.get_playlist_songs_info(self.id, self.size)
         else:
             return api_serv.get_album_songs_info(self.id, self.size)
+
+    def add_to_another_playlist(self, dest_id: str):
+        api_serv.add_playlist_to_playlist(self.songs, dest_id)

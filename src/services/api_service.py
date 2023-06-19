@@ -694,11 +694,13 @@ class APIService:
         if connect():
             self.refresh_user_token()
             position = self.get_playlist_size(pl_id)
-            post(
+            response = post(
                 f"{self.base_uri}/playlists/{pl_id}/tracks",
                 dumps({"uris": [f"spotify:track:{song_id}"], "position": position}),
                 headers=self.headers,
             )
+            return response
+
 
     def delete_song_from_playlist(self, pl_id: str, song_id: str):
         if connect():
@@ -733,6 +735,27 @@ class APIService:
                 dumps({"name": name, "public": public, "description": description}),
                 headers=self.headers,
             )
+
+    def add_playlist_to_playlist(self, songs: list, dest_id: str):
+        # this function adds songs from one playlist to another
+        # BUT only those that are not added to that playlist
+        # so it's basically a playlist merging
+        dest_songs = self.get_playlist_songs(dest_id)
+        for i, song in enumerate(songs):
+            count_source = songs.count(song)
+            count_destination = dest_songs.count(song)
+            # if song occurs in the source playlist more than in
+            # the destination playlist then it should be added again
+            if count_source > count_destination:
+                status = self.add_song_to_playlist(dest_id, song[0])
+                if str(status)[:12] != "<Response [2":
+                    while True:
+                        print("This song is local. The app can not add it to another playlist.")
+                        print("If you want to save the order of the songs, please go to the Spotify and add " +
+                              "it manually and then come back!")
+                        print("The song is " + song[0] + f" ({i+1} or {len(songs) - i} by index)")
+                        choice = input("Press any key to continue...")
+                        break
 
     # --------------------- SONG RELATED FUNCTIONS -------------------------
 
